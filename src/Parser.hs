@@ -48,12 +48,12 @@ number = Number <$> Tok.integer lexer
 true :: Parser Bool
 true = do
   lexeme $ string "#t"
-  pure True
+  return True
 
 false :: Parser Bool
 false = do
   lexeme $ string "#f"
-  pure False
+  return False
 
 boolean :: Parser Value
 boolean = Boolean <$> (try true <|> false)
@@ -66,19 +66,19 @@ atom = do
   atom <- identifier
   if atom == "."
     then parserZero
-    else pure (Atom atom)
+    else return (Atom atom)
 
 pair :: Parser Value
 pair = parens $ do
   car <- value
   lexeme $ string "."
   cdr <- value
-  pure (Pair car cdr)
+  return (Pair car cdr)
 
 list :: Parser Value
 list = parens $ do
   values <- value `sepBy` whiteSpace
-  pure (List values)
+  return (List values)
 
 value :: Parser Value
 value =
@@ -94,7 +94,7 @@ contents p = do
   whiteSpace
   result <- lexeme p
   eof
-  pure result
+  return result
 
 topLevel :: Parser [Value]
 topLevel = value `sepBy` whiteSpace
@@ -105,4 +105,4 @@ readValue = parse (contents value) "<stdin>"
 readFileValues :: FilePath -> IO (Either ParseError [Value])
 readFileValues file = do
   txt <- readFileText file
-  pure (parse (contents topLevel) file txt)
+  return (parse (contents topLevel) file txt)

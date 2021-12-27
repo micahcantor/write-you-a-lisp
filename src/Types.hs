@@ -51,4 +51,4 @@ data LispError
   | Default
   deriving (Show)
 
-type Eval a = ReaderT Env (ExceptT LispError Identity) a
+type Eval a = StateT Env (ExceptT LispError Identity) a

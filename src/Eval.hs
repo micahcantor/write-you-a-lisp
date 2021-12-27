@@ -5,46 +5,46 @@ module Eval where
 import Control.Monad.Except
 import Data.List (last)
 import qualified Data.Map as Map
+import Env
 import NativeFunction
 import Relude hiding (last)
 import Types
-import Env
 
 runEval :: Env -> Eval a -> Either LispError a
-runEval env eval = runIdentity (runExceptT (runReaderT eval env))
+runEval env eval = runIdentity (runExceptT (evalStateT eval env))
 
 runEvalDefault :: Eval a -> Either LispError a
 runEvalDefault = runEval defaultEnv
 
 eval :: Value -> Eval Value
-eval val = do
-  traceShowM val
-  case val of
-    Atom name -> getVar name
-    String content -> pure (String content)
-    Number n -> pure (Number n)
-    Boolean b -> pure (Boolean b)
-    Pair car cdr -> do
-      carVal <- eval car
-      cdrVal <- eval cdr
-      pure (Pair carVal cdrVal)
-    List (head : rest) -> case head of
-      Atom "if" -> evalIf rest
-      Atom "lambda" -> evalLambda rest
-      Atom "let" -> evalLet rest
-      Atom "begin" -> evalBegin rest
-      Atom "define" -> do
-        evalDefine rest
-      _ -> evalApplication head rest
-    List [] -> pure (List [])
-    _ -> throwError Default -- this is because not distinguishing between expressions and values
+eval val = case val of
+  Atom name -> getVar name
+  String content -> return (String content)
+  Number n -> return (Number n)
+  Boolean b -> return (Boolean b)
+  Pair car cdr -> do
+    carVal <- eval car
+    cdrVal <- eval cdr
+    return (Pair carVal cdrVal)
+  List (head : rest) -> case head of
+    Atom "if" -> evalIf rest
+    Atom "lambda" -> evalLambda rest
+    Atom "let" -> evalLet rest
+    Atom "begin" -> evalBegin rest
+    Atom "quote" -> evalQuote rest
+    Atom "define" -> evalDefine rest
+    _ -> apply head rest
+  List [] -> return Nil
+  _ -> throwError Default -- this is because not distinguishing between expressions and values
 
-withEnv :: Env -> Eval Value -> Eval Value 
-withEnv env = local (const env)
+withEnv :: Env -> Value -> Eval Value
+withEnv env val = do
+  put env
+  eval val
 
 getVar :: Text -> Eval Value
 getVar name = do
-  Env _ lookup <- ask
+  Env bindings lookup <- get
   lookup name
 
 evalIf :: [Value] -> Eval Value
@@ -60,22 +60,22 @@ evalLambda :: [Value] -> Eval Value
 evalLambda values = case values of
   [List params, body] -> do
     paramNames <- forM params $ \case
-      Atom name -> pure name
+      Atom name -> return name
       _ -> throwError (BadSyntax "lambda")
-    env <- ask
-    pure $ Function paramNames body env
+    closure <- get
+    return $ Function paramNames body closure
   _ -> throwError (BadSyntax "lambda")
 
 evalLet :: [Value] -> Eval Value
 evalLet values = case values of
   [List bindings, body] -> do
-    env <- ask
+    env <- get
     pairs <- forM bindings $ \case
       List [Atom name, value] -> do
         value' <- eval value
-        pure (name, value')
+        return (name, value')
       _ -> throwError (BadSyntax "let")
-    withEnv (bindAll env pairs) (pure body)
+    withEnv (bindAll env pairs) body
   _ -> throwError (BadSyntax "let")
 
 evalBegin :: [Value] -> Eval Value
@@ -83,25 +83,28 @@ evalBegin values = do
   values' <- mapM eval values
   case values' of
     [] -> throwError (BadSyntax "begin")
-    _ -> pure (last values') -- safe since must be nonempty
+    _ -> return (last values') -- safe since must be nonempty
 
-evalDefine :: [Value]  -> Eval Value
+evalQuote :: [Value] -> Eval Value
+evalQuote values = case values of
+  [x] -> return x
+  _ -> throwError (BadSyntax "quote")
+
+evalDefine :: [Value] -> Eval Value
 evalDefine values = case values of
-  [Atom name, body] -> do
-    env <- ask
-    let env' = bindRec env name (`withEnv` (pure body))
-    traceShowM (List rest)
-    withEnv env' (pure (List rest))
+  [Atom name, body] -> do 
+    modify (\env -> bindRec env name (`withEnv` body))
+    return Nil
   _ -> throwError (BadSyntax "define")
 
-evalApplication :: Value -> [Value] -> Eval Value
-evalApplication fun args = do
+apply :: Value -> [Value] -> Eval Value
+apply fun args = do
   funValue <- eval fun
   argValues <- mapM eval args
   case funValue of
     Function argNames body closure -> do
       let pairs = zip argNames argValues
-      withEnv (bindAll closure pairs) (pure body)
+      withEnv (bindAll closure pairs) body
     NativeFunction f -> f argValues
     _ -> throwError (NotFunction funValue)
 

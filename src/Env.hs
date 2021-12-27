@@ -15,22 +15,22 @@ defaultEnv =
 
 defaultLookup :: Text -> Eval Value
 defaultLookup name = do
-  Env bindings _ <- ask
+  Env bindings _ <- get
   case Map.lookup name bindings of
-    Just val -> pure val
+    Just val -> return val
     Nothing -> throwError (UndefinedName name)
 
 bindRec :: Env -> Text -> (Env -> Eval Value) -> Env
 bindRec env name getValue =
-  env
-    { lookup = \n -> do
-        if n == name
-          then getValue env
-          else defaultLookup n
-    }
+  env {lookup = lookupRec}
+  where
+    lookupRec n =
+      if n == name
+        then get >>= getValue
+        else (lookup env) n
 
 bind :: Env -> Text -> Value -> Env
-bind env name value = bindRec env name (const (pure value))
+bind env name value = env {bindings = Map.insert name value (bindings env)}
 
 bindAll :: Env -> [(Text, Value)] -> Env
 bindAll = foldr (\(name, value) acc -> bind acc name value)

@@ -14,6 +14,7 @@ nativeFunctions =
     <$> Map.fromList
       [ ("+", add),
         ("-", sub),
+        ("eq", eq),
         ("car", car),
         ("cdr", cdr),
         ("cons", cons),
@@ -23,47 +24,55 @@ nativeFunctions =
 getNums :: Text -> [Value] -> Eval [Integer]
 getNums name xs = do
   nums <- forM xs $ \case
-    Number n -> pure n
+    Number n -> return n
     _ -> throwError (TypeMismatch name)
-  pure nums
+  return nums
 
 add :: [Value] -> Eval Value
-add [] = pure (Number 0)
+add [] = return (Number 0)
 add xs = do
   nums <- getNums "+" xs
-  pure (Number (sum nums))
+  return (Number (sum nums))
 
 sub :: [Value] -> Eval Value
 sub [] = throwError (ArityMismatch "-")
 sub [x] = case x of
-  Number n -> pure (Number (negate n))
+  Number n -> return (Number (negate n))
   _ -> throwError (TypeMismatch "-")
 sub xs = do
   nums <- getNums "-" xs
-  pure (Number (foldl1 (-) nums))
+  return (Number (foldl1 (-) nums))
+
+eq :: [Value] -> Eval Value
+eq [x, y] = case (x, y) of
+  (Number n, Number m) -> return (Boolean (n == m))
+  _ -> throwError (TypeMismatch "==")
+eq _ = throwError (ArityMismatch "==")
 
 cons :: [Value] -> Eval Value
 cons [head, tail] = case tail of
-  List xs -> pure (List (head : xs))
+  Nil -> return (List [head])
+  List xs -> return (List (head : xs))
   _ -> throwError (TypeMismatch "cons")
 cons _ = throwError (ArityMismatch "cons")
 
 car :: [Value] -> Eval Value
 car [x] = case x of
-  List [] -> throwError (EmptyList "car")
-  List (x : _) -> pure x
+  Nil -> throwError (EmptyList "car")
+  List (x : _) -> return x
   _ -> throwError (TypeMismatch "car")
 car _ = throwError (ArityMismatch "car")
 
 cdr :: [Value] -> Eval Value
 cdr [x] = case x of
-  List [] -> throwError (EmptyList "cdr")
-  List (_ : xs) -> pure (List xs)
+  Nil -> throwError (EmptyList "cdr")
+  List (_ : xs) -> return (List xs)
   _ -> throwError (TypeMismatch "cdr")
 cdr _ = throwError (ArityMismatch "cdr")
 
 isNull :: [Value] -> Eval Value
 isNull [x] = case x of
-  List [] -> pure (Boolean True)
-  _ -> pure (Boolean False)
+  Nil -> return (Boolean True)
+  List [] -> return (Boolean True)
+  _ -> return (Boolean False)
 isNull _ = throwError (ArityMismatch "null?")
