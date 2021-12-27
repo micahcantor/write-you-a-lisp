@@ -37,10 +37,13 @@ eval val = case val of
   List [] -> return Nil
   _ -> throwError Default -- this is because not distinguishing between expressions and values
 
-withEnv :: Env -> Value -> Eval Value
-withEnv env val = do
+evalWithEnv :: Env -> Value -> Eval Value
+evalWithEnv env val = do
+  prev <- get
   put env
-  eval val
+  result <- eval val
+  put prev
+  return result
 
 getVar :: Text -> Eval Value
 getVar name = do
@@ -75,7 +78,7 @@ evalLet values = case values of
         value' <- eval value
         return (name, value')
       _ -> throwError (BadSyntax "let")
-    withEnv (bindAll env pairs) body
+    evalWithEnv (bindAll env pairs) body
   _ -> throwError (BadSyntax "let")
 
 evalBegin :: [Value] -> Eval Value
@@ -93,7 +96,7 @@ evalQuote values = case values of
 evalDefine :: [Value] -> Eval Value
 evalDefine values = case values of
   [Atom name, body] -> do 
-    modify (\env -> bindRec env name (`withEnv` body))
+    modify (\env -> bindRec env name (`evalWithEnv` body))
     return Nil
   _ -> throwError (BadSyntax "define")
 
@@ -104,7 +107,7 @@ apply fun args = do
   case funValue of
     Function argNames body closure -> do
       let pairs = zip argNames argValues
-      withEnv (bindAll closure pairs) body
+      evalWithEnv (bindAll closure pairs) body
     NativeFunction f -> f argValues
     _ -> throwError (NotFunction funValue)
 
