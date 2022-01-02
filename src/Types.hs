@@ -6,13 +6,12 @@ import qualified Text.Show
 import Util
 import qualified Data.Map as Map
 
-data Env = Env
-  { bindings :: Map Text Value,
-    lookup :: Text -> Eval Value
-  }
+type Env = Map Text Value
 
-instance Show Env where
-  show (Env bindings _) = show bindings
+newtype CallFunc = CallFunc ([Value] -> Eval Value)
+
+instance Eq CallFunc where
+  _ == _ = False
 
 data Value
   = Atom Text
@@ -20,10 +19,11 @@ data Value
   | Number Integer
   | Boolean Bool
   | Function [Text] Value Env -- params, body, and closure
-  | NativeFunction ([Value] -> Eval Value)
+  | NativeFunction CallFunc
   | List [Value]
-  | Pair Value Value
+  | DottedList [Value] Value
   | Nil
+  deriving (Eq)
 
 instance Show Value where
   show val = case val of
@@ -35,7 +35,7 @@ instance Show Value where
     Function _ _ _ -> "<function>"
     NativeFunction _ -> "<native-function>"
     List xs -> parenthesized (unwordsList xs)
-    Pair a b -> parenthesized (show a <> " . " <> show b)
+    DottedList xs last -> ""
     Nil -> "nil"
 
 unwordsList :: Show a => [a] -> String
@@ -49,6 +49,6 @@ data LispError
   | ArityMismatch Text
   | EmptyList Text
   | Default
-  deriving (Show)
+  deriving (Show, Eq)
 
-type Eval a = StateT Env (ExceptT LispError Identity) a
+type Eval a = StateT [Env] (ExceptT LispError Identity) a

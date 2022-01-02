@@ -39,9 +39,6 @@ lexeme = Tok.lexeme lexer
 identifier :: Parser Text
 identifier = toText <$> Tok.identifier lexer
 
-quote :: Parser Text
-quote = toText <$> string "\'"
-
 number :: Parser Value
 number = Number <$> Tok.integer lexer
 
@@ -61,6 +58,12 @@ boolean = Boolean <$> (try true <|> false)
 stringLiteral :: Parser Value
 stringLiteral = String . toText <$> Tok.stringLiteral lexer
 
+quoted :: Parser Value
+quoted = do
+  lexeme (char '\'')
+  x <- value
+  return (List [Atom "quote", x])
+
 atom :: Parser Value
 atom = do
   atom <- identifier
@@ -68,12 +71,16 @@ atom = do
     then parserZero
     else return (Atom atom)
 
-pair :: Parser Value
-pair = parens $ do
-  car <- value
-  lexeme $ string "."
-  cdr <- value
-  return (Pair car cdr)
+dottedList :: Parser Value
+dottedList = parens $ do
+  xs <- value `sepBy` whiteSpace
+  lexeme (string ".")
+  last <- value
+  case last of
+    DottedList ls l -> return (DottedList (xs ++ ls) l)
+    List ls -> return (List (xs ++ ls))
+    _ -> return (DottedList xs last)
+  return (DottedList xs last)
 
 list :: Parser Value
 list = parens $ do
@@ -86,7 +93,8 @@ value =
     <|> number
     <|> boolean
     <|> stringLiteral
-    <|> try pair
+    <|> quoted
+    <|> try dottedList
     <|> list
 
 contents :: Parser a -> Parser a

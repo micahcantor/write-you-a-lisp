@@ -10,11 +10,12 @@ import Types
 
 nativeFunctions :: Map Text Value
 nativeFunctions =
-  NativeFunction
+  NativeFunction . CallFunc
     <$> Map.fromList
       [ ("+", add),
         ("-", sub),
-        ("eq", eq),
+        ("*", times),
+        ("==", eq),
         ("car", car),
         ("cdr", cdr),
         ("cons", cons),
@@ -43,10 +44,14 @@ sub xs = do
   nums <- getNums "-" xs
   return (Number (foldl1 (-) nums))
 
+times :: [Value] -> Eval Value 
+times [] = return (Number 1)
+times xs = do
+  nums <- getNums "*" xs
+  return (Number (product nums))
+
 eq :: [Value] -> Eval Value
-eq [x, y] = case (x, y) of
-  (Number n, Number m) -> return (Boolean (n == m))
-  _ -> throwError (TypeMismatch "==")
+eq [x, y] = return (Boolean (x == y))
 eq _ = throwError (ArityMismatch "==")
 
 cons :: [Value] -> Eval Value

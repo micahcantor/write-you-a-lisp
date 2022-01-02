@@ -1,0 +1,8 @@
+(define (filter pred? xs)
+  (if (null? xs)
+      ()
+      (if (pred? (car xs))
+          (cons (car xs) (filter pred? (cdr xs)))
+          (filter pred? (cdr xs)))))
+
+(filter (lambda (x) (eq x 2)) '(1 2 3))

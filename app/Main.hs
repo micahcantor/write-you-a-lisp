@@ -16,7 +16,7 @@ main = do
       case result of
         Left err -> print err
         Right values ->
-          let topLevel = makeTopLevel values
+          let topLevel = beginWrap values
            in case runEvalDefault (eval topLevel) of
              Left err -> print err
              Right result -> print result

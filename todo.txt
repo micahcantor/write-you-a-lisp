@@ -1,0 +1,8 @@
+[] reorganize src folder
+[] clean up main.hs
+[x] add equality
+[] fix set!
+[] add io other primitives
+[] finish dotted lists
+[] add varargs lambdas
+[] implement simple macros
