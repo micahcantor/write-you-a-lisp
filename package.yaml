@@ -1,9 +1,9 @@
-name:                writing-a-lisp
+name:                write-you-a-lisp
 version:             0.1.0.0
-github:              "githubuser/writing-a-lisp"
-license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
+github:              "micahcantor/write-you-a-lisp"
+license:             MIT
+author:              "Micah Cantor"
+maintainer:          "hello@micahcantor.com"
 copyright:           "2021 Author name here"
 
 extra-source-files:
@@ -17,7 +17,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/writing-a-lisp#readme>
+description:         Please see the README on GitHub at <https://github.com/micahcantor/writing-a-lisp#readme>
 
 dependencies:
 - relude
@@ -42,7 +42,7 @@ executables:
     - -with-rtsopts=-N
     default-extensions: OverloadedStrings, NoImplicitPrelude
     dependencies:
-    - writing-a-lisp
+    - write-you-a-lisp
     - haskeline
 
 tests:
@@ -54,4 +54,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - writing-a-lisp
+    - write-you-a-lisp

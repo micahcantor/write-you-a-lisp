@@ -4,15 +4,15 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 
-name:           writing-a-lisp
+name:           write-you-a-lisp
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/writing-a-lisp#readme>
-homepage:       https://github.com/githubuser/writing-a-lisp#readme
-bug-reports:    https://github.com/githubuser/writing-a-lisp/issues
-author:         Author name here
-maintainer:     example@example.com
+description:    Please see the README on GitHub at <https://github.com/micahcantor/writing-a-lisp#readme>
+homepage:       https://github.com/micahcantor/write-you-a-lisp#readme
+bug-reports:    https://github.com/micahcantor/write-you-a-lisp/issues
+author:         Micah Cantor
+maintainer:     hello@micahcantor.com
 copyright:      2021 Author name here
-license:        BSD3
+license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
@@ -21,7 +21,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/writing-a-lisp
+  location: https://github.com/micahcantor/write-you-a-lisp
 
 library
   exposed-modules:
@@ -30,9 +30,8 @@ library
       NativeFunction
       Parser
       Types
-      Value
   other-modules:
-      Paths_writing_a_lisp
+      Paths_write_you_a_lisp
   hs-source-dirs:
       src
   default-extensions:
@@ -49,7 +48,7 @@ library
 executable writing-a-lisp-exe
   main-is: Main.hs
   other-modules:
-      Paths_writing_a_lisp
+      Paths_write_you_a_lisp
   hs-source-dirs:
       app
   default-extensions:
@@ -59,19 +58,19 @@ executable writing-a-lisp-exe
       base
     , haskeline
     , relude
-    , writing-a-lisp
+    , write-you-a-lisp
   default-language: Haskell2010
 
 test-suite writing-a-lisp-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_writing_a_lisp
+      Paths_write_you_a_lisp
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
     , relude
-    , writing-a-lisp
+    , write-you-a-lisp
   default-language: Haskell2010
