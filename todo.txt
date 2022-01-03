@@ -3,5 +3,6 @@
 [] add io other primitives
 [] add varargs lambdas
 [] implement simple macros
+[] maybe change [Env] to (NonEmpty Env) to be more clear.
 [x] add equality
 [x] fix set!
