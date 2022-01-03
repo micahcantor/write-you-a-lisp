@@ -12,15 +12,15 @@ main = do
   case args of 
     [] -> runInputT defaultSettings loop
     [file] -> do
-      result <- readFileValues file
-      case result of
+      parseResult <- readFileValues file
+      case parseResult of
         Left err -> print err
         Right values ->
           let topLevel = beginWrap values
            in case runEvalDefault (eval topLevel) of
              Left err -> print err
              Right result -> print result
-    _ -> putStrLn "0 or 1 args"
+    _ -> putStrLn "Error: expected 0 or 1 args."
   where
     loop :: InputT IO ()
     loop = do

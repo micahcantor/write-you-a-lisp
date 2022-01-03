@@ -1,16 +1,15 @@
 module Env where
 
-import Control.Monad.Except
 import qualified Data.Map as Map
 import NativeFunction
 import Relude
-import Types 
+import Types
 
 defaultEnv :: Env
 defaultEnv = nativeFunctions
 
 lookup :: Text -> [Env] -> Maybe Value
-lookup name [] = Nothing 
+lookup name [] = Nothing
 lookup name (top : rest) =
   whenNothing (Map.lookup name top) $
     lookup name rest

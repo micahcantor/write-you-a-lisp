@@ -30,7 +30,7 @@ library
       NativeFunction
       Parser
       Types
-      Util
+      Value
   other-modules:
       Paths_writing_a_lisp
   hs-source-dirs:

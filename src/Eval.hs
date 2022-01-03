@@ -3,10 +3,10 @@
 module Eval where
 
 import Control.Monad.Except
-import Data.List (last)
+import Data.List (head, tail, last)
 import qualified Data.Map as Map
 import Env
-import Relude hiding (last)
+import Relude hiding (head,tail, last)
 import Types
 
 runEval :: [Env] -> Eval a -> Either LispError a
@@ -55,7 +55,7 @@ evalLambda values = case values of
 
 evalLet :: [Value] -> Eval Value
 evalLet values = case values of
-  (List bindings : body) -> do
+  List bindings : body -> do
     env <- getTopEnv
     pairs <- forM bindings $ \case
       List [Atom name, expr] -> do
@@ -66,11 +66,11 @@ evalLet values = case values of
   _ -> throwError (BadSyntax "let")
 
 evalBegin :: [Value] -> Eval Value
-evalBegin values = do
-  values' <- mapM eval values
-  case values' of
+evalBegin exprs = do
+  values <- mapM eval exprs
+  case values of
     [] -> throwError (BadSyntax "begin")
-    _ -> return (last values') -- safe since must be nonempty
+    _ -> return (last values) -- safe since must be nonempty
 
 evalQuote :: [Value] -> Eval Value
 evalQuote values = case values of
@@ -79,11 +79,11 @@ evalQuote values = case values of
 
 evalDefine :: [Value] -> Eval Value
 evalDefine values = case values of
-  (Atom name : body) -> do
+  Atom name : body -> do
     value <- eval (beginWrap body)
     bindInTopEnv name value
     return Nil
-  (List (name : args) : body) -> do
+  List (name : args) : body -> do
     let desugared = List [Atom "lambda", List args, beginWrap body]
     evalDefine [name, desugared]
   _ -> throwError (BadSyntax "define")
@@ -119,18 +119,17 @@ beginWrap values = List (Atom "begin" : values)
 getTopEnv :: Eval Env
 getTopEnv = do
   envs <- get
-  case envs of
-    top : _ -> return top
-    [] -> throwError Default
+  return (head envs)
 
 bindInTopEnv :: Text -> Value -> Eval ()
-bindInTopEnv name value = do
+bindInTopEnv name value =
   modify (\(env : rest) -> (bind env name value) : rest)
 
 withEnv :: Env -> Eval Value -> Eval Value
 withEnv env ev = do
   modify ((:) env)
   result <- ev
+  modify tail
   return result
 
 getVar :: Text -> Eval Value

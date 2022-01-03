@@ -25,7 +25,7 @@ style =
     }
 
 symbol :: Parser Char
-symbol = oneOf "!$%&|*+-/:<=>?@^_~."
+symbol = oneOf "!$%&|*+-/:<=>?@^_~"
 
 parens :: Parser a -> Parser a
 parens = Tok.parens lexer
@@ -65,11 +65,7 @@ quoted = do
   return (List [Atom "quote", x])
 
 atom :: Parser Value
-atom = do
-  atom <- identifier
-  if atom == "."
-    then parserZero
-    else return (Atom atom)
+atom = Atom <$> identifier
 
 dottedList :: Parser Value
 dottedList = parens $ do
@@ -77,10 +73,12 @@ dottedList = parens $ do
   lexeme (string ".")
   last <- value
   case last of
+    -- if ends in pair, combine pair heads
     DottedList ls l -> return (DottedList (xs ++ ls) l)
+    -- if ends in list, then the pair is a list
     List ls -> return (List (xs ++ ls))
+    -- otherwise just return pair
     _ -> return (DottedList xs last)
-  return (DottedList xs last)
 
 list :: Parser Value
 list = parens $ do

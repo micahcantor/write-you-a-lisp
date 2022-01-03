@@ -1,8 +1,7 @@
-[] reorganize src folder
 [] clean up main.hs
-[x] add equality
-[] fix set!
+[] move primitive forms to primitve file
 [] add io other primitives
-[] finish dotted lists
 [] add varargs lambdas
 [] implement simple macros
+[x] add equality
+[x] fix set!

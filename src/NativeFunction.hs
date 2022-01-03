@@ -3,10 +3,10 @@
 module NativeFunction where
 
 import Control.Monad.Except
-import Data.Foldable (foldl1)
 import qualified Data.Map as Map
 import Relude
 import Types
+import Data.List (foldl1')
 
 nativeFunctions :: Map Text Value
 nativeFunctions =
@@ -15,7 +15,7 @@ nativeFunctions =
       [ ("+", add),
         ("-", sub),
         ("*", times),
-        ("==", eq),
+        ("=", eq),
         ("car", car),
         ("cdr", cdr),
         ("cons", cons),
@@ -42,7 +42,7 @@ sub [x] = case x of
   _ -> throwError (TypeMismatch "-")
 sub xs = do
   nums <- getNums "-" xs
-  return (Number (foldl1 (-) nums))
+  return (Number (foldl1' (-) nums))
 
 times :: [Value] -> Eval Value 
 times [] = return (Number 1)
@@ -52,7 +52,7 @@ times xs = do
 
 eq :: [Value] -> Eval Value
 eq [x, y] = return (Boolean (x == y))
-eq _ = throwError (ArityMismatch "==")
+eq _ = throwError (ArityMismatch "=")
 
 cons :: [Value] -> Eval Value
 cons [head, tail] = case tail of
