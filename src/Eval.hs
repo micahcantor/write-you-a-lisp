@@ -28,6 +28,8 @@ eval val = case val of
     Atom "let" -> evalLet rest
     Atom "begin" -> evalBegin rest
     Atom "quote" -> evalQuote rest
+    Atom "quasiquote" -> evalQuasiquote rest
+    Atom "unquote" -> evalUnquote rest
     Atom "define" -> evalDefine rest
     Atom "set!" -> evalSet rest
     f -> apply f rest
@@ -77,6 +79,18 @@ evalQuote values = case values of
   [x] -> pure x
   _ -> throwError (BadSyntax "quote")
 
+evalQuasiquote :: [Value] -> Eval Value
+evalQuasiquote values = case values of
+  [x] -> case x of
+    List xs -> _
+    _ -> pure x
+  _ -> throwError (BadSyntax "quasiquote")
+
+evalUnquote :: [Value] -> Eval Value
+evalUnquote values = case values of
+  [x] -> eval x
+  _ -> throwError (BadSyntax "unquote")
+
 evalDefine :: [Value] -> Eval Value
 evalDefine values = case values of
   Atom name : body -> do
@@ -120,7 +134,6 @@ getTopEnv :: Eval Env
 getTopEnv = do
   envs <- get
   pure (head envs)
-
 
 withEnv :: Env -> Eval Value -> Eval Value
 withEnv env ev = do

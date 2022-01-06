@@ -64,6 +64,18 @@ quoted = do
   x <- value
   pure (List [Atom "quote", x])
 
+quasiquoted :: Parser Value
+quasiquoted = do
+  lexeme (char '`')
+  x <- value
+  pure (List [Atom "quasiquote", x])
+
+unquoted :: Parser Value
+unquoted = do
+  lexeme (char ',')
+  x <- value
+  pure (List [Atom "unquote", x])
+
 atom :: Parser Value
 atom = Atom <$> identifier
 
@@ -92,6 +104,8 @@ value =
     <|> boolean
     <|> stringLiteral
     <|> quoted
+    <|> quasiquoted
+    <|> unquoted
     <|> try dottedList
     <|> list
 
