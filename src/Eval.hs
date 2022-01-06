@@ -13,15 +13,15 @@ runEval :: [Env] -> Eval a -> Either LispError a
 runEval envs eval = runIdentity (runExceptT (evalStateT eval envs))
 
 runEvalDefault :: Eval a -> Either LispError a
-runEvalDefault = runEval [defaultEnv]
+runEvalDefault = runEval [emptyEnv]
 
 eval :: Value -> Eval Value
 eval val = case val of
   Atom name -> getVar name
-  String content -> return (String content)
-  Number n -> return (Number n)
-  Boolean b -> return (Boolean b)
-  DottedList xs last -> return (DottedList xs last)
+  String content -> pure (String content)
+  Number n -> pure (Number n)
+  Boolean b -> pure (Boolean b)
+  DottedList xs last -> pure (DottedList xs last)
   List (head : rest) -> case head of
     Atom "if" -> evalIf rest
     Atom "lambda" -> evalLambda rest
@@ -31,7 +31,7 @@ eval val = case val of
     Atom "define" -> evalDefine rest
     Atom "set!" -> evalSet rest
     f -> apply f rest
-  List [] -> return Nil
+  List [] -> pure Nil
   _ -> throwError Default
 
 evalIf :: [Value] -> Eval Value
@@ -47,10 +47,10 @@ evalLambda :: [Value] -> Eval Value
 evalLambda values = case values of
   [List params, body] -> do
     paramNames <- forM params $ \case
-      Atom name -> return name
+      Atom name -> pure name
       _ -> throwError (BadSyntax "lambda")
     closure <- getTopEnv
-    return (Function paramNames body closure)
+    pure (Function paramNames body closure)
   _ -> throwError (BadSyntax "lambda")
 
 evalLet :: [Value] -> Eval Value
@@ -60,9 +60,9 @@ evalLet values = case values of
     pairs <- forM bindings $ \case
       List [Atom name, expr] -> do
         value <- eval expr
-        return (name, value)
+        pure (name, value)
       _ -> throwError (BadSyntax "let")
-    withEnv (bindAll env pairs) (eval (beginWrap body))
+    withEnv (bindAll emptyEnv pairs) (eval (beginWrap body))
   _ -> throwError (BadSyntax "let")
 
 evalBegin :: [Value] -> Eval Value
@@ -70,19 +70,19 @@ evalBegin exprs = do
   values <- mapM eval exprs
   case values of
     [] -> throwError (BadSyntax "begin")
-    _ -> return (last values) -- safe since must be nonempty
+    _ -> pure (last values) -- safe since must be nonempty
 
 evalQuote :: [Value] -> Eval Value
 evalQuote values = case values of
-  [x] -> return x
+  [x] -> pure x
   _ -> throwError (BadSyntax "quote")
 
 evalDefine :: [Value] -> Eval Value
 evalDefine values = case values of
   Atom name : body -> do
     value <- eval (beginWrap body)
-    bindInTopEnv name value
-    return Nil
+    modify (\(env : rest) -> (bind name value env) : rest)
+    pure Nil
   List (name : args) : body -> do
     let desugared = List [Atom "lambda", List args, beginWrap body]
     evalDefine [name, desugared]
@@ -91,10 +91,10 @@ evalDefine values = case values of
 evalSet :: [Value] -> Eval Value
 evalSet values = case values of
   [Atom name, expr] -> do
-    _ <- getVar name -- check if name is defined
     value <- eval expr
-    bindInTopEnv name value
-    return Nil
+    _ <- getVar name
+    modify (assign name value)
+    pure Nil
   _ -> throwError (BadSyntax "set!")
 
 apply :: Value -> [Value] -> Eval Value
@@ -119,21 +119,19 @@ beginWrap values = List (Atom "begin" : values)
 getTopEnv :: Eval Env
 getTopEnv = do
   envs <- get
-  return (head envs)
+  pure (head envs)
 
-bindInTopEnv :: Text -> Value -> Eval ()
-bindInTopEnv name value =
-  modify (\(env : rest) -> (bind env name value) : rest)
 
 withEnv :: Env -> Eval Value -> Eval Value
 withEnv env ev = do
   modify ((:) env)
   result <- ev
   modify tail
-  return result
+  pure result
 
 getVar :: Text -> Eval Value
 getVar name = do
   envs <- get
-  whenNothing (lookup name envs) $
+  traceShowM envs
+  whenNothing (lookup name envs) $ 
     throwError (UndefinedName name)

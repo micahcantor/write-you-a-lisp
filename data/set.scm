@@ -1,6 +1,6 @@
 
 (define x 1)
 (define y 2)
-(set! x y)
+(let ()
+  (set! x 3))
 x
-y

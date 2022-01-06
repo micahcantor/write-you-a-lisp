@@ -8,14 +8,29 @@ import Types
 defaultEnv :: Env
 defaultEnv = nativeFunctions
 
+emptyEnv :: Env
+emptyEnv = Map.empty
+
 lookup :: Text -> [Env] -> Maybe Value
 lookup name [] = Nothing
 lookup name (top : rest) =
   whenNothing (Map.lookup name top) $
     lookup name rest
 
-bind :: Env -> Text -> Value -> Env
-bind env name value = Map.insert name value env
+assign :: Text -> Value -> [Env] -> [Env]
+assign name value = go False []
+  where
+    go found acc [] = reverse acc
+    go found acc (top : rest)
+      | found = 
+        go found (top : acc) rest
+      | Map.member name top = 
+        go True ((bind name value top) : acc) rest
+      | otherwise = 
+        go found (top : acc) rest
+    
+bind :: Text -> Value -> Env -> Env
+bind = Map.insert
 
 bindAll :: Env -> [(Text, Value)] -> Env
-bindAll = foldr (\(name, value) acc -> bind acc name value)
+bindAll = foldr (uncurry bind)

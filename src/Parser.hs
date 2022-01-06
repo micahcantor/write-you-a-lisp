@@ -45,12 +45,12 @@ number = Number <$> Tok.integer lexer
 true :: Parser Bool
 true = do
   lexeme $ string "#t"
-  return True
+  pure True
 
 false :: Parser Bool
 false = do
   lexeme $ string "#f"
-  return False
+  pure False
 
 boolean :: Parser Value
 boolean = Boolean <$> (try true <|> false)
@@ -62,7 +62,7 @@ quoted :: Parser Value
 quoted = do
   lexeme (char '\'')
   x <- value
-  return (List [Atom "quote", x])
+  pure (List [Atom "quote", x])
 
 atom :: Parser Value
 atom = Atom <$> identifier
@@ -74,16 +74,16 @@ dottedList = parens $ do
   last <- value
   case last of
     -- if ends in pair, combine pair heads
-    DottedList ls l -> return (DottedList (xs ++ ls) l)
+    DottedList ls l -> pure (DottedList (xs ++ ls) l)
     -- if ends in list, then the pair is a list
-    List ls -> return (List (xs ++ ls))
-    -- otherwise just return pair
-    _ -> return (DottedList xs last)
+    List ls -> pure (List (xs ++ ls))
+    -- otherwise just pure pair
+    _ -> pure (DottedList xs last)
 
 list :: Parser Value
 list = parens $ do
   values <- value `sepBy` whiteSpace
-  return (List values)
+  pure (List values)
 
 value :: Parser Value
 value =
@@ -100,7 +100,7 @@ contents p = do
   whiteSpace
   result <- lexeme p
   eof
-  return result
+  pure result
 
 topLevel :: Parser [Value]
 topLevel = value `sepBy` whiteSpace
@@ -111,4 +111,4 @@ readValue = parse (contents value) "<stdin>"
 readFileValues :: FilePath -> IO (Either ParseError [Value])
 readFileValues file = do
   txt <- readFileText file
-  return (parse (contents topLevel) file txt)
+  pure (parse (contents topLevel) file txt)
