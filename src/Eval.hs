@@ -13,7 +13,7 @@ runEval :: [Env] -> Eval a -> Either LispError a
 runEval envs eval = runIdentity (runExceptT (evalStateT eval envs))
 
 runEvalDefault :: Eval a -> Either LispError a
-runEvalDefault = runEval [emptyEnv]
+runEvalDefault = runEval [defaultEnv]
 
 eval :: Value -> Eval Value
 eval val = case val of
@@ -132,6 +132,5 @@ withEnv env ev = do
 getVar :: Text -> Eval Value
 getVar name = do
   envs <- get
-  traceShowM envs
   whenNothing (lookup name envs) $ 
     throwError (UndefinedName name)

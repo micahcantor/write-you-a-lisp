@@ -11,6 +11,12 @@ defaultEnv = nativeFunctions
 emptyEnv :: Env
 emptyEnv = Map.empty
 
+bind :: Text -> Value -> Env -> Env
+bind = Map.insert
+
+bindAll :: Env -> [(Text, Value)] -> Env
+bindAll = foldr (uncurry bind)
+
 lookup :: Text -> [Env] -> Maybe Value
 lookup name [] = Nothing
 lookup name (top : rest) =
@@ -28,9 +34,4 @@ assign name value = go False []
         go True ((bind name value top) : acc) rest
       | otherwise = 
         go found (top : acc) rest
-    
-bind :: Text -> Value -> Env -> Env
-bind = Map.insert
-
-bindAll :: Env -> [(Text, Value)] -> Env
-bindAll = foldr (uncurry bind)
+  
