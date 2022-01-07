@@ -30,7 +30,9 @@ eval val = case val of
     Atom "quote" -> evalQuote rest
     Atom "quasiquote" -> evalQuasiquote rest
     Atom "unquote" -> throwError (BadSyntax "unquote") -- illegal unquote
+    Atom "unquote-splicing" -> throwError (BadSyntax "unquote-splicing")
     Atom "define" -> evalDefine rest
+    Atom "define-macro" -> evalDefineMacro rest
     Atom "set!" -> evalSet rest
     f -> apply f rest
   List [] -> pure Nil
@@ -48,9 +50,7 @@ evalIf values = case values of
 evalLambda :: [Value] -> Eval Value
 evalLambda values = case values of
   [List params, body] -> do
-    paramNames <- forM params $ \case
-      Atom name -> pure name
-      _ -> throwError (BadSyntax "lambda")
+    paramNames <- getParamNames params
     closure <- getTopEnv
     pure (Function paramNames body closure)
   _ -> throwError (BadSyntax "lambda")
@@ -98,14 +98,29 @@ evalUnquote values = case values of
   [x] -> eval x
   _ -> throwError (BadSyntax "unquote")
 
+evalUnquoteSplicing :: [Value] -> Eval Value
+evalUnquoteSplicing values = case values of
+  [x] -> eval x
+  _ -> throwError (BadSyntax "unquote-splicing")
+
+evalDefineMacro :: [Value] -> Eval Value
+evalDefineMacro values = case values of
+  [List (Atom name : params), body] -> do
+    closure <- getTopEnv
+    paramNames <- getParamNames params
+    let macro = Macro paramNames body closure
+    bindInTopEnv name macro
+    pure Nil
+  _ -> throwError (BadSyntax "define-macro")
+
 evalDefine :: [Value] -> Eval Value
 evalDefine values = case values of
-  Atom name : body -> do
-    value <- eval (beginWrap body)
-    modify (\(env : rest) -> (bind name value env) : rest)
+  [Atom name, body] -> do
+    value <- eval body
+    bindInTopEnv name value
     pure Nil
-  List (name : args) : body -> do
-    let desugared = List [Atom "lambda", List args, beginWrap body]
+  List (name : params) : body -> do
+    let desugared = List [Atom "lambda", List params, beginWrap body]
     evalDefine [name, desugared]
   _ -> throwError (BadSyntax "define")
 
@@ -119,15 +134,21 @@ evalSet values = case values of
   _ -> throwError (BadSyntax "set!")
 
 apply :: Value -> [Value] -> Eval Value
-apply name args = do
-  funValue <- eval name
-  argValues <- mapM eval args
-  case funValue of
+apply name argExprs = do
+  caller <- eval name
+  case caller of
     Function argNames body closure -> do
+      argValues <- mapM eval argExprs
       let pairs = zip argNames argValues
       withEnv (bindAll closure pairs) (eval body)
-    NativeFunction (CallFunc f) -> f argValues
-    _ -> throwError (NotFunction funValue)
+    Macro argNames body closure -> do
+      let pairs = zip argNames argExprs -- args are left unevaluated
+      expanded <- withEnv (bindAll closure pairs) (eval body)
+      eval expanded
+    NativeFunction (CallFunc f) -> do
+      argValues <- mapM eval argExprs
+      f argValues
+    _ -> throwError (NotFunction caller)
 
 isTruthy :: Value -> Bool
 isTruthy v = case v of
@@ -142,6 +163,10 @@ getTopEnv = do
   envs <- get
   pure (head envs)
 
+bindInTopEnv :: Text -> Value -> Eval ()
+bindInTopEnv name value = 
+  modify (\(env : rest) -> (bind name value env) : rest)
+
 withEnv :: Env -> Eval Value -> Eval Value
 withEnv env ev = do
   modify ((:) env)
@@ -154,3 +179,8 @@ getVar name = do
   envs <- get
   whenNothing (lookup name envs) $
     throwError (UndefinedName name)
+
+getParamNames :: [Value] -> Eval [Text]
+getParamNames params = forM params $ \case
+  Atom name -> pure name
+  _ -> throwError (BadSyntax "parameter names must all be atoms")
