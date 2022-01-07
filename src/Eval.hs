@@ -3,10 +3,10 @@
 module Eval where
 
 import Control.Monad.Except
-import Data.List (head, tail, last)
+import Data.List (head, last, tail)
 import qualified Data.Map as Map
 import Env
-import Relude hiding (head,tail, last)
+import Relude hiding (head, last, tail)
 import Types
 
 runEval :: [Env] -> Eval a -> Either LispError a
@@ -29,7 +29,7 @@ eval val = case val of
     Atom "begin" -> evalBegin rest
     Atom "quote" -> evalQuote rest
     Atom "quasiquote" -> evalQuasiquote rest
-    Atom "unquote" -> evalUnquote rest
+    Atom "unquote" -> throwError (BadSyntax "unquote") -- illegal unquote
     Atom "define" -> evalDefine rest
     Atom "set!" -> evalSet rest
     f -> apply f rest
@@ -81,10 +81,17 @@ evalQuote values = case values of
 
 evalQuasiquote :: [Value] -> Eval Value
 evalQuasiquote values = case values of
-  [x] -> case x of
-    List xs -> _
-    _ -> pure x
+  [x] -> helper x
   _ -> throwError (BadSyntax "quasiquote")
+  where
+    helper :: Value -> Eval Value
+    helper v = case v of
+      List (Atom "unquote" : rest) ->
+        evalUnquote rest
+      List xs -> do
+        values <- mapM helper xs
+        pure (List values)
+      _ -> pure v
 
 evalUnquote :: [Value] -> Eval Value
 evalUnquote values = case values of
@@ -145,5 +152,5 @@ withEnv env ev = do
 getVar :: Text -> Eval Value
 getVar name = do
   envs <- get
-  whenNothing (lookup name envs) $ 
+  whenNothing (lookup name envs) $
     throwError (UndefinedName name)

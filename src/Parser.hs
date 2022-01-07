@@ -76,6 +76,12 @@ unquoted = do
   x <- value
   pure (List [Atom "unquote", x])
 
+unquoteSpliced :: Parser Value
+unquoteSpliced = do
+  lexeme (string ",@")
+  x <- value
+  pure (List [Atom "unquote-splicing", x])
+
 atom :: Parser Value
 atom = Atom <$> identifier
 
@@ -105,6 +111,7 @@ value =
     <|> stringLiteral
     <|> quoted
     <|> quasiquoted
+    <|> try unquoteSpliced
     <|> unquoted
     <|> try dottedList
     <|> list
