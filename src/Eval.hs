@@ -8,12 +8,13 @@ import qualified Data.Map as Map
 import Env
 import Relude hiding (head, last, tail)
 import Types
+import Data.Maybe (fromJust)
 
-runEval :: [Env] -> Eval a -> Either LispError a
-runEval envs eval = runIdentity (runExceptT (evalStateT eval envs))
+runEval :: Env -> Eval a -> Either LispError a
+runEval env eval = runIdentity (runExceptT (evalStateT eval env))
 
 runEvalDefault :: Eval a -> Either LispError a
-runEvalDefault = runEval [defaultEnv]
+runEvalDefault = runEval defaultEnv
 
 eval :: Value -> Eval Value
 eval val = case val of
@@ -50,15 +51,15 @@ evalIf values = case values of
 evalLambda :: [Value] -> Eval Value
 evalLambda values = case values of
   [List params, body] -> do
+    closure <- get
     paramNames <- getParamNames params
-    closure <- getTopEnv
     pure (Function paramNames body closure)
   _ -> throwError (BadSyntax "lambda")
 
 evalLet :: [Value] -> Eval Value
 evalLet values = case values of
   List bindings : body -> do
-    env <- getTopEnv
+    env <- get
     pairs <- forM bindings $ \case
       List [Atom name, expr] -> do
         value <- eval expr
@@ -106,10 +107,10 @@ evalUnquoteSplicing values = case values of
 evalDefineMacro :: [Value] -> Eval Value
 evalDefineMacro values = case values of
   [List (Atom name : params), body] -> do
-    closure <- getTopEnv
+    closure <- get
     paramNames <- getParamNames params
     let macro = Macro paramNames body closure
-    bindInTopEnv name macro
+    modify (bind name macro)
     pure Nil
   _ -> throwError (BadSyntax "define-macro")
 
@@ -117,7 +118,7 @@ evalDefine :: [Value] -> Eval Value
 evalDefine values = case values of
   [Atom name, body] -> do
     value <- eval body
-    bindInTopEnv name value
+    modify (bind name value)
     pure Nil
   List (name : params) : body -> do
     let desugared = List [Atom "lambda", List params, beginWrap body]
@@ -158,26 +159,17 @@ isTruthy v = case v of
 beginWrap :: [Value] -> Value
 beginWrap values = List (Atom "begin" : values)
 
-getTopEnv :: Eval Env
-getTopEnv = do
-  envs <- get
-  pure (head envs)
-
-bindInTopEnv :: Text -> Value -> Eval ()
-bindInTopEnv name value = 
-  modify (\(env : rest) -> (bind name value env) : rest)
-
-withEnv :: Env -> Eval Value -> Eval Value
-withEnv env ev = do
-  modify ((:) env)
-  result <- ev
-  modify tail
+withEnv :: Env -> Eval a -> Eval a
+withEnv env computation = do
+  modify (\current -> env {parent = Just current})
+  result <- computation
+  modify (fromJust . parent)
   pure result
 
 getVar :: Text -> Eval Value
 getVar name = do
-  envs <- get
-  whenNothing (lookup name envs) $
+  env <- get
+  whenNothing (lookup name env) $
     throwError (UndefinedName name)
 
 getParamNames :: [Value] -> Eval [Text]

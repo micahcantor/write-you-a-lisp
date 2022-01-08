@@ -1,11 +1,14 @@
 module Types where
 
 import Data.List (unwords)
+import qualified Data.Map as Map
 import Relude hiding (unwords)
 import qualified Text.Show
-import qualified Data.Map as Map
 
-type Env = Map Text Value
+data Env = Env
+  { bindings :: Map Text Value,
+    parent :: Maybe Env
+  } deriving (Eq)
 
 newtype CallFunc = CallFunc ([Value] -> Eval Value)
 
@@ -18,12 +21,12 @@ data Value
   | Number Integer
   | Boolean Bool
   | Function [Text] Value Env -- params, body, and closure
-  | Macro [Text] Value Env 
+  | Macro [Text] Value Env
   | NativeFunction CallFunc
   | List [Value]
   | DottedList [Value] Value
   | Nil
-  deriving (Eq)  
+  deriving (Eq)
 
 instance Show Value where
   show val = case val of
@@ -56,14 +59,14 @@ data LispError
   deriving (Eq)
 
 instance Show LispError where
-  show err = "Error: " ++ case err of
-    BadSyntax form -> "Bad syntax in form '" ++ toString form ++ "'."
-    TypeMismatch f -> "Type mismatch in function '" ++ toString f ++ "'."
-    NotFunction v -> "'" ++ show v ++ "' is not a function."
-    UndefinedName name -> "Undefined name " ++ toString name
-    ArityMismatch f -> "Arity mismatch in function '" ++ toString f ++ "'."
-    EmptyList f -> "Empty list in function '" ++ toString f ++ "'."
-    Default -> "Default."
+  show err =
+    "Error: " ++ case err of
+      BadSyntax form -> "Bad syntax in form '" ++ toString form ++ "'."
+      TypeMismatch f -> "Type mismatch in function '" ++ toString f ++ "'."
+      NotFunction v -> "'" ++ show v ++ "' is not a function."
+      UndefinedName name -> "Undefined name " ++ toString name
+      ArityMismatch f -> "Arity mismatch in function '" ++ toString f ++ "'."
+      EmptyList f -> "Empty list in function '" ++ toString f ++ "'."
+      Default -> "Default."
 
-
-type Eval a = StateT [Env] (ExceptT LispError Identity) a
+type Eval a = StateT Env (ExceptT LispError Identity) a
