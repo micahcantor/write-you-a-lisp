@@ -2,7 +2,9 @@
 [] move primitive forms to primitve file
 [] add io other primitives
 [] add varargs lambdas
-[] implement simple macros
 [] maybe change [Env] to (NonEmpty Env) to be more clear.
+[] finish unquote-splicing
+[x] add quasiquote/unquote
+[x] implement simple macros
 [x] add equality
 [x] fix set!
