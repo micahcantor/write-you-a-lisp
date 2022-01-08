@@ -28,10 +28,10 @@ lookup name Env{bindings, parent} =
     p <- parent
     lookup name p
 
-assign :: Text -> Value -> Env -> Env
+assign :: Text -> Value -> Env -> Maybe Env
 assign name value env@Env{bindings, parent} = 
   if Map.member name bindings
-    then bind name value env
-    else case parent of
-      Nothing -> env
-      Just p -> env {parent = Just (assign name value p)}
+    then Just (bind name value env)
+    else do
+      p <- parent
+      Just (env {parent = assign name value p})

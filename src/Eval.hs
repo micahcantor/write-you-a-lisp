@@ -129,8 +129,10 @@ evalSet :: [Value] -> Eval Value
 evalSet values = case values of
   [Atom name, expr] -> do
     value <- eval expr
-    _ <- getVar name
-    modify (assign name value)
+    env <- get
+    case assign name value env of
+      Nothing -> throwError (UndefinedName name)
+      Just env' -> put env'
     pure Nil
   _ -> throwError (BadSyntax "set!")
 
