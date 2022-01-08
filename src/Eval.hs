@@ -10,10 +10,10 @@ import Relude hiding (last)
 import Types
 import Data.Maybe (fromJust)
 
-runEval :: Env -> Eval a -> Either LispError a
-runEval env eval = runIdentity (runExceptT (evalStateT eval env))
+runEval :: Env -> Eval a -> IO (Either LispError a)
+runEval env eval = runExceptT (evalStateT eval env)
 
-runEvalDefault :: Eval a -> Either LispError a
+runEvalDefault :: Eval a -> IO (Either LispError a)
 runEvalDefault = runEval defaultEnv
 
 eval :: Value -> Eval Value

@@ -2,4 +2,4 @@
 (define y 2)
 (let ()
   (set! x 3))
-x
+(print x)

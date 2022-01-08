@@ -19,7 +19,8 @@ primitives =
         ("car", car),
         ("cdr", cdr),
         ("cons", cons),
-        ("null?", isNull)
+        ("null?", isNull),
+        ("print", printVal)
       ]
 
 eq :: [Value] -> Eval Value
@@ -88,6 +89,8 @@ isNull _ = throwError (ArityMismatch "null?")
 
 -- io --
 
-printVal :: [Value] -> Eval ()
-printVal [x] = print x
+printVal :: [Value] -> Eval Value
+printVal [x] = do
+  print x
+  pure Nil
 printVal _ = throwError (ArityMismatch "print")

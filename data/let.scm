@@ -1,3 +1,3 @@
 (let ((x 5))
   (let ((x 6))
-    (+ x x)))
+    (print (+ x x))))

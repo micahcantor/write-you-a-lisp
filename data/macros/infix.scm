@@ -9,4 +9,4 @@
 (define-macro (infix expr)
   `(,(second expr) ,(first expr) ,(third expr)))
 
-(infix (1 + 1))
+(print (infix (1 + 1)))

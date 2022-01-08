@@ -3,4 +3,4 @@
        ,body
        ()))
 
-(when #t "true")
+(print (when #t "true"))

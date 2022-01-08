@@ -6,4 +6,4 @@
       ()
       (cons (f (car xs)) (map f (cdr xs)))))
 
-(map add1 '(1 2 3 4 5))
+(print (map add1 '(1 2 3 4 5)))

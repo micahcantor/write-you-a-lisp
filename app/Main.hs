@@ -15,11 +15,12 @@ main = do
       parseResult <- readFileValues file
       case parseResult of
         Left err -> print err
-        Right values ->
+        Right values -> do
           let topLevel = beginWrap values
-           in case runEvalDefault (eval topLevel) of
+          evalResult <- runEvalDefault (eval topLevel)
+          case evalResult of
              Left err -> print err
-             Right result -> print result
+             Right _ -> pass
     _ -> putStrLn "Error: expected 0 or 1 args."
   where
     loop :: InputT IO ()
@@ -28,7 +29,9 @@ main = do
       whenJust minput $ \input -> do
         case readValue (toText input) of
           Left err -> outputStrLn (show err)
-          Right expr -> case runEvalDefault (eval expr) of
-            Left err -> outputStrLn (show err)
-            Right value -> outputStrLn $ show value
+          Right expr -> do
+            evalResult <- liftIO $ runEvalDefault (eval expr)
+            case evalResult of
+              Left err -> outputStrLn (show err)
+              Right value -> outputStrLn $ show value
         loop

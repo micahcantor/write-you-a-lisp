@@ -69,4 +69,4 @@ instance Show LispError where
       EmptyList f -> "Empty list in function '" ++ toString f ++ "'."
       Default -> "Default."
 
-type Eval a = StateT Env (ExceptT LispError Identity) a
+type Eval a = StateT Env (ExceptT LispError IO) a
