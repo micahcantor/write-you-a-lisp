@@ -2,8 +2,8 @@
 [] move primitive forms to primitve file
 [] add io other primitives
 [] add varargs lambdas
-[] maybe change [Env] to (NonEmpty Env) to be more clear.
 [] finish unquote-splicing
+[x] change env to record rather than stack
 [x] add quasiquote/unquote
 [x] implement simple macros
 [x] add equality
