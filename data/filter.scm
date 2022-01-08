@@ -5,4 +5,4 @@
           (cons (car xs) (filter pred? (cdr xs)))
           (filter pred? (cdr xs)))))
 
-(filter (lambda (x) (== x 2)) '(1 2 3))
+(filter (lambda (x) (= x 2)) '(1 2 3))
