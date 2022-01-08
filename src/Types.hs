@@ -22,7 +22,7 @@ data Value
   | Boolean Bool
   | Function [Text] Value Env -- params, body, and closure
   | Macro [Text] Value Env
-  | NativeFunction CallFunc
+  | Primitive CallFunc
   | List [Value]
   | DottedList [Value] Value
   | Nil
@@ -37,7 +37,7 @@ instance Show Value where
     String text -> "\"" <> toString text <> "\""
     Function _ _ _ -> "<function>"
     Macro _ _ _ -> "<macro>"
-    NativeFunction _ -> "<native-function>"
+    Primitive _ -> "<primitive>"
     List xs -> parenthesized (unwordsList xs)
     DottedList xs last -> parenthesized ((unwordsList xs) <> " . " <> show last)
     Nil -> "nil"

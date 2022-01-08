@@ -3,10 +3,10 @@
 module Eval where
 
 import Control.Monad.Except
-import Data.List (head, last, tail)
+import Data.List (last)
 import qualified Data.Map as Map
 import Env
-import Relude hiding (head, last, tail)
+import Relude hiding (last)
 import Types
 import Data.Maybe (fromJust)
 
@@ -132,7 +132,7 @@ evalSet values = case values of
     env <- get
     case assign name value env of
       Nothing -> throwError (UndefinedName name)
-      Just env' -> put env'
+      Just updated -> put updated
     pure Nil
   _ -> throwError (BadSyntax "set!")
 
@@ -148,7 +148,7 @@ apply name argExprs = do
       let pairs = zip argNames argExprs -- args are left unevaluated
       expanded <- withEnv (bindAll closure pairs) (eval body)
       eval expanded
-    NativeFunction (CallFunc f) -> do
+    Primitive (CallFunc f) -> do
       argValues <- mapM eval argExprs
       f argValues
     _ -> throwError (NotFunction caller)

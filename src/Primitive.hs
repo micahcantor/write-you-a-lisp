@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module NativeFunction where
+module Primitive where
 
 import Control.Monad.Except
 import qualified Data.Map as Map
@@ -8,9 +8,9 @@ import Relude
 import Types
 import Data.List (foldl1')
 
-nativeFunctions :: Map Text Value
-nativeFunctions =
-  NativeFunction . CallFunc
+primitives :: Map Text Value
+primitives =
+  Primitive . CallFunc
     <$> Map.fromList
       [ ("+", add),
         ("-", sub),
@@ -21,6 +21,12 @@ nativeFunctions =
         ("cons", cons),
         ("null?", isNull)
       ]
+
+eq :: [Value] -> Eval Value
+eq [x, y] = pure (Boolean (x == y))
+eq _ = throwError (ArityMismatch "=")
+
+-- numeric --
 
 getNums :: Text -> [Value] -> Eval [Integer]
 getNums name xs = do
@@ -50,9 +56,7 @@ times xs = do
   nums <- getNums "*" xs
   pure (Number (product nums))
 
-eq :: [Value] -> Eval Value
-eq [x, y] = pure (Boolean (x == y))
-eq _ = throwError (ArityMismatch "=")
+-- lists --
 
 cons :: [Value] -> Eval Value
 cons [head, tail] = case tail of
@@ -81,3 +85,9 @@ isNull [x] = case x of
   List [] -> pure (Boolean True)
   _ -> pure (Boolean False)
 isNull _ = throwError (ArityMismatch "null?")
+
+-- io --
+
+printVal :: [Value] -> Eval ()
+printVal [x] = print x
+printVal _ = throwError (ArityMismatch "print")

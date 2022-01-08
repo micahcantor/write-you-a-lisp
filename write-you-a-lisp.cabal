@@ -27,8 +27,8 @@ library
   exposed-modules:
       Env
       Eval
-      NativeFunction
       Parser
+      Primitive
       Types
   other-modules:
       Paths_write_you_a_lisp

@@ -1,14 +1,14 @@
 module Env where
 
 import qualified Data.Map as Map
-import NativeFunction
+import Primitive
 import Relude
 import Types
 
 defaultEnv :: Env
 defaultEnv =
   Env
-    { bindings = nativeFunctions,
+    { bindings = primitives,
       parent = Nothing
     }
 
