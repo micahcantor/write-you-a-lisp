@@ -11,17 +11,20 @@ main = do
   args <- getArgs
   case args of
     [] -> runInputT defaultSettings repl
-    [file] -> do
-      parseResult <- readFileValues file
-      case parseResult of
-        Left err -> print err
-        Right values -> do
-          let topLevel = beginWrap values
-          evalResult <- runEvalDefault (eval topLevel)
-          case evalResult of
-            Left err -> print err
-            Right _ -> pass
+    [file] -> runFile file
     _ -> putStrLn "Error: expected 0 or 1 args."
+
+runFile :: FilePath -> IO ()
+runFile file = do
+  parseResult <- readFileValues file
+  case parseResult of
+    Left err -> print err
+    Right values -> do
+      let topLevel = beginWrap values
+      evalResult <- runEvalDefault (eval topLevel)
+      case evalResult of
+        Left err -> print err
+        Right _ -> pass
 
 repl :: InputT IO ()
 repl = do
