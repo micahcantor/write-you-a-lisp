@@ -151,7 +151,7 @@ apply name argExprs = do
     Primitive (CallFunc f) -> do
       argValues <- mapM eval argExprs
       f argValues
-    _ -> throwError (NotFunction caller)
+    _ -> throwError (NotCallable caller)
 
 isTruthy :: Value -> Bool
 isTruthy v = case v of

@@ -51,7 +51,7 @@ parenthesized s = "(" <> s <> ")"
 data LispError
   = BadSyntax Text
   | TypeMismatch Text
-  | NotFunction Value
+  | NotCallable Value
   | UndefinedName Text
   | ArityMismatch Text
   | EmptyList Text
@@ -63,7 +63,7 @@ instance Show LispError where
     "Error: " ++ case err of
       BadSyntax form -> "Bad syntax in form '" ++ toString form ++ "'."
       TypeMismatch f -> "Type mismatch in function '" ++ toString f ++ "'."
-      NotFunction v -> "'" ++ show v ++ "' is not a function."
+      NotCallable v -> "'" ++ show v ++ "' is not callable."
       UndefinedName name -> "Undefined name " ++ toString name
       ArityMismatch f -> "Arity mismatch in function '" ++ toString f ++ "'."
       EmptyList f -> "Empty list in function '" ++ toString f ++ "'."

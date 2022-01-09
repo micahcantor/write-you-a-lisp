@@ -3,25 +3,27 @@
 module Primitive where
 
 import Control.Monad.Except
+import Data.List (foldl1')
 import qualified Data.Map as Map
 import Relude
 import Types
-import Data.List (foldl1')
 
 primitives :: Map Text Value
 primitives =
-  Primitive . CallFunc
-    <$> Map.fromList
-      [ ("+", add),
-        ("-", sub),
-        ("*", times),
-        ("=", eq),
-        ("car", car),
-        ("cdr", cdr),
-        ("cons", cons),
-        ("null?", isNull),
-        ("print", printVal)
-      ]
+  Primitive . CallFunc <$> map
+  where
+    map =
+      Map.fromList
+        [ ("=", eq),
+          ("+", add),
+          ("-", sub),
+          ("*", times),
+          ("car", car),
+          ("cdr", cdr),
+          ("cons", cons),
+          ("null?", isNull),
+          ("print", printVal)
+        ]
 
 eq :: [Value] -> Eval Value
 eq [x, y] = pure (Boolean (x == y))
@@ -51,7 +53,7 @@ sub xs = do
   nums <- getNums "-" xs
   pure (Number (foldl1' (-) nums))
 
-times :: [Value] -> Eval Value 
+times :: [Value] -> Eval Value
 times [] = pure (Number 1)
 times xs = do
   nums <- getNums "*" xs
