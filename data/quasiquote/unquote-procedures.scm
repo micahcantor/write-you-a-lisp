@@ -9,4 +9,4 @@
   `((name ,name)
     (hire-date ,(get-day) ,(get-month) ,(get-year))))
 
-(create-shipping-employee-association "Mark")
+(print (create-shipping-employee-association "Mark"))

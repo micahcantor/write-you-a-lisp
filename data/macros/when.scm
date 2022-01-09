@@ -1,6 +1,6 @@
 (define-macro (when pred body)
   `(if ,pred
-       ,body
+       (begin ,body)
        ()))
 
 (print (when #t "true"))

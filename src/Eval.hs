@@ -5,10 +5,10 @@ module Eval where
 import Control.Monad.Except
 import Data.List (last)
 import qualified Data.Map as Map
+import Data.Maybe (fromJust)
 import Env
 import Relude hiding (last)
 import Types
-import Data.Maybe (fromJust)
 
 runEval :: Env -> Eval a -> IO (Either LispError a)
 runEval env eval = runExceptT (evalStateT eval env)
@@ -82,27 +82,43 @@ evalQuote values = case values of
 
 evalQuasiquote :: [Value] -> Eval Value
 evalQuasiquote values = case values of
-  [x] -> helper x
+  [v] -> case v of
+    List (Atom "quasiquote" : rest) -> do
+      inner <- evalQuasiquote rest
+      evalQuasiquote [inner]
+    List (Atom "unquote" : rest) ->
+      evalUnquote rest
+    List [Atom "unquote-splicing", _] ->
+      throwError (BadSyntax "unquote-splicing")
+    List xs -> do
+      values <- foldM reducer [] (reverse xs)
+      pure (List values)
+    _ -> pure v
   _ -> throwError (BadSyntax "quasiquote")
   where
-    helper :: Value -> Eval Value
-    helper v = case v of
-      List (Atom "unquote" : rest) ->
-        evalUnquote rest
+    reducer :: [Value] -> Value -> Eval [Value]
+    reducer acc x = case x of
+      List [Atom "unquote-splicing", expr] -> case expr of
+        List xs -> pure (xs ++ acc)
+        _ -> pure (expr : acc)
+      List (Atom "unquote-splicing" : _) ->
+        throwError (BadSyntax "unquote-splicing")
+      List (Atom "unquote" : rest) -> do
+        value <- evalUnquote rest
+        pure (value : acc)
+      List (Atom "quasiquote" : rest) -> do
+        inner <- evalQuasiquote rest
+        value <- evalQuasiquote [inner]
+        pure (value : acc)
       List xs -> do
-        values <- mapM helper xs
-        pure (List values)
-      _ -> pure v
+        values <- foldM reducer [] (reverse xs)
+        pure (List values : acc)
+      _ -> pure (x : acc)
 
 evalUnquote :: [Value] -> Eval Value
 evalUnquote values = case values of
   [x] -> eval x
   _ -> throwError (BadSyntax "unquote")
-
-evalUnquoteSplicing :: [Value] -> Eval Value
-evalUnquoteSplicing values = case values of
-  [x] -> eval x
-  _ -> throwError (BadSyntax "unquote-splicing")
 
 evalDefineMacro :: [Value] -> Eval Value
 evalDefineMacro values = case values of
