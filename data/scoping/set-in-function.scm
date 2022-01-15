@@ -1,0 +1,7 @@
+(define p 1)
+(print p)
+(set! p 2)
+(print p)
+(define (setp) (set! p 3))
+(setp)
+(print p)
