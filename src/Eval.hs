@@ -53,8 +53,8 @@ evalLambda :: [Value] -> Eval Value
 evalLambda values = case values of
   [List params, body] -> do
     closure <- get
-    (paramNames, varArg) <- getParamNames params
-    pure (Function paramNames body closure varArg)
+    paramNames <- getParamNames params
+    pure (Function paramNames body closure)
   _ -> throwError (BadSyntax "lambda")
 
 evalLet :: [Value] -> Eval Value
@@ -125,8 +125,8 @@ evalDefineMacro :: [Value] -> Eval Value
 evalDefineMacro values = case values of
   [List (Atom name : params), body] -> do
     closure <- get
-    (paramNames, varArg) <- getParamNames params
-    let macro = Macro paramNames body closure varArg
+    paramNames <- getParamNames params
+    let macro = Macro paramNames body closure
     modify (bind name macro)
     pure Nil
   _ -> throwError (BadSyntax "define-macro")
@@ -157,16 +157,12 @@ apply :: Value -> [Value] -> Eval Value
 apply callerExpr argExprs = do
   caller <- eval callerExpr
   case caller of
-    Function argNames body closure varArg -> do
-      case varArg of
-        Nothing -> checkArity argNames argExprs
-        Just name -> do
-          let arity = length argNames
-          _
+    Function argNames body closure -> do
+      checkArity argNames argExprs
       argValues <- mapM eval argExprs
       let pairs = zip argNames argValues
       withEnv (bindAll closure pairs) (eval body)
-    Macro argNames body closure varArg -> do
+    Macro argNames body closure -> do
       checkArity argNames argExprs
       let pairs = zip argNames argExprs -- args are left unevaluated
       expanded <- withEnv (bindAll closure pairs) (eval body)
@@ -203,16 +199,16 @@ checkArity params args =
     then pure ()
     else throwError (ArityMismatch "<function>") 
 
-getParamNames :: [Value] -> Eval ([Text], Maybe Text)
+getParamNames :: [Value] -> Eval [Text]
+getParamNames params = forM params $ \case
+  Atom name -> pure name
+  _ -> throwError (BadSyntax "parameter names must all be atoms")
+
+{- getParamNames :: [Value] -> Eval ([Text], Maybe Text)
 getParamNames = go ([], Nothing)
   where
     go :: ([Text], Maybe Text) -> [Value] -> Eval ([Text], Maybe Text)
     go (params, varArg) [] = pure (params, varArg)
     go (params, _) [Atom "&", Atom varArg] = pure (params, Just varArg)
     go (params, varArg) (Atom name : rest) = go (name : params, varArg) rest
-    go _ _ = throwError (BadSyntax "parameters")
-
-getParamNamesNoVarArgs :: [Value] -> Eval [Text]
-getParamNamesNoVarArgs params = forM params $ \case
-  Atom name -> pure name
-  _ -> throwError (BadSyntax "parameter names must all be atoms")
+    go _ _ = throwError (BadSyntax "parameters") -}
