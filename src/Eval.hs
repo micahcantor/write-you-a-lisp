@@ -3,6 +3,7 @@
 module Eval where
 
 import Control.Monad.Except
+import Data.Foldable (foldrM)
 import Data.List (last)
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
@@ -52,8 +53,8 @@ evalLambda :: [Value] -> Eval Value
 evalLambda values = case values of
   [List params, body] -> do
     closure <- get
-    paramNames <- getParamNames params
-    pure (Function paramNames body closure)
+    (paramNames, varArg) <- getParamNames params
+    pure (Function paramNames body closure varArg)
   _ -> throwError (BadSyntax "lambda")
 
 evalLet :: [Value] -> Eval Value
@@ -91,13 +92,13 @@ evalQuasiquote values = case values of
     List [Atom "unquote-splicing", _] ->
       throwError (BadSyntax "unquote-splicing")
     List xs -> do
-      values <- foldM reducer [] (reverse xs)
+      values <- foldrM reducer [] xs
       pure (List values)
     _ -> pure v
   _ -> throwError (BadSyntax "quasiquote")
   where
-    reducer :: [Value] -> Value -> Eval [Value]
-    reducer acc x = case x of
+    reducer :: Value -> [Value] -> Eval [Value]
+    reducer x acc = case x of
       List [Atom "unquote-splicing", expr] -> case expr of
         List xs -> pure (xs ++ acc)
         _ -> pure (expr : acc)
@@ -111,7 +112,7 @@ evalQuasiquote values = case values of
         value <- evalQuasiquote [inner]
         pure (value : acc)
       List xs -> do
-        values <- foldM reducer [] (reverse xs)
+        values <- foldrM reducer [] xs
         pure (List values : acc)
       _ -> pure (x : acc)
 
@@ -124,8 +125,8 @@ evalDefineMacro :: [Value] -> Eval Value
 evalDefineMacro values = case values of
   [List (Atom name : params), body] -> do
     closure <- get
-    paramNames <- getParamNames params
-    let macro = Macro paramNames body closure
+    (paramNames, varArg) <- getParamNames params
+    let macro = Macro paramNames body closure varArg
     modify (bind name macro)
     pure Nil
   _ -> throwError (BadSyntax "define-macro")
@@ -153,14 +154,20 @@ evalSet values = case values of
   _ -> throwError (BadSyntax "set!")
 
 apply :: Value -> [Value] -> Eval Value
-apply name argExprs = do
-  caller <- eval name
+apply callerExpr argExprs = do
+  caller <- eval callerExpr
   case caller of
-    Function argNames body closure -> do
+    Function argNames body closure varArg -> do
+      case varArg of
+        Nothing -> checkArity argNames argExprs
+        Just name -> do
+          let arity = length argNames
+          _
       argValues <- mapM eval argExprs
       let pairs = zip argNames argValues
       withEnv (bindAll closure pairs) (eval body)
-    Macro argNames body closure -> do
+    Macro argNames body closure varArg -> do
+      checkArity argNames argExprs
       let pairs = zip argNames argExprs -- args are left unevaluated
       expanded <- withEnv (bindAll closure pairs) (eval body)
       eval expanded
@@ -181,7 +188,7 @@ withEnv :: Env -> Eval a -> Eval a
 withEnv env computation = do
   modify (\current -> env {parent = Just current})
   result <- computation
-  modify (fromJust . parent)
+  modify (fromJust . parent) -- safe since we just added a parent
   pure result
 
 getVar :: Text -> Eval Value
@@ -190,7 +197,22 @@ getVar name = do
   whenNothing (lookup name env) $
     throwError (UndefinedName name)
 
-getParamNames :: [Value] -> Eval [Text]
-getParamNames params = forM params $ \case
+checkArity :: [Text] -> [Value] -> Eval ()
+checkArity params args =
+  if length params == length args
+    then pure ()
+    else throwError (ArityMismatch "<function>") 
+
+getParamNames :: [Value] -> Eval ([Text], Maybe Text)
+getParamNames = go ([], Nothing)
+  where
+    go :: ([Text], Maybe Text) -> [Value] -> Eval ([Text], Maybe Text)
+    go (params, varArg) [] = pure (params, varArg)
+    go (params, _) [Atom "&", Atom varArg] = pure (params, Just varArg)
+    go (params, varArg) (Atom name : rest) = go (name : params, varArg) rest
+    go _ _ = throwError (BadSyntax "parameters")
+
+getParamNamesNoVarArgs :: [Value] -> Eval [Text]
+getParamNamesNoVarArgs params = forM params $ \case
   Atom name -> pure name
   _ -> throwError (BadSyntax "parameter names must all be atoms")
