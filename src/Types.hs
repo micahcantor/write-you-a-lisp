@@ -4,11 +4,17 @@ import Data.List (unwords)
 import qualified Data.Map as Map
 import Relude hiding (unwords)
 import qualified Text.Show
+import GHC.IO (unsafePerformIO)
 
 data Env = Env
-  { bindings :: Map Text Value,
+  { bindings :: Map Text (IORef Value),
     parent :: Maybe Env
-  } deriving (Show, Eq)
+  } deriving (Eq)
+
+instance Show Env where
+  show Env{bindings, parent} = unsafePerformIO $ do
+    values <- mapM readIORef bindings
+    pure $ show (values, parent)
 
 newtype CallFunc = CallFunc ([Value] -> Eval Value)
 

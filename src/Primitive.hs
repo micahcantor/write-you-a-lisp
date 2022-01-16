@@ -14,14 +14,14 @@ primitives =
   where
     map =
       Map.fromList
-        [ {- ("=", eq),
+        [ ("=", eq),
           ("+", add),
           ("-", sub),
           ("*", times),
           ("car", car),
           ("cdr", cdr),
           ("cons", cons),
-          ("null?", isNull), -}
+          ("null?", isNull),
           ("print", printVal)
         ]
 

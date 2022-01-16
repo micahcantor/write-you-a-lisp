@@ -15,7 +15,9 @@ runEval :: Env -> Eval a -> IO (Either LispError a)
 runEval env eval = runExceptT (evalStateT eval env)
 
 runEvalDefault :: Eval a -> IO (Either LispError a)
-runEvalDefault = runEval defaultEnv
+runEvalDefault computation = do
+  env <- defaultEnv 
+  runEval env computation
 
 eval :: Value -> Eval Value
 eval val = case val of
@@ -25,7 +27,6 @@ eval val = case val of
   Boolean b -> pure (Boolean b)
   DottedList xs last -> pure (DottedList xs last)
   List (head : rest) -> case head of
-    -- Atom "dumpEnv" -> get >>= traceShowM >> pure Nil
     Atom "if" -> evalIf rest
     Atom "lambda" -> evalLambda rest
     Atom "let" -> evalLet rest
@@ -67,7 +68,8 @@ evalLet values = case values of
         value <- eval expr
         pure (name, value)
       _ -> throwError (BadSyntax "let")
-    withEnv (bindAll env pairs) (eval (beginWrap body))
+    bound <- bindAll env pairs
+    withEnv bound (eval (beginWrap body))
   _ -> throwError (BadSyntax "let")
 
 evalBegin :: [Value] -> Eval Value
@@ -125,10 +127,11 @@ evalUnquote values = case values of
 evalDefineMacro :: [Value] -> Eval Value
 evalDefineMacro values = case values of
   [List (Atom name : params), body] -> do
-    closure <- get
+    env <- get
     paramNames <- getParamNames params
-    let macro = Macro paramNames body closure
-    modify (bind name macro)
+    let macro = Macro paramNames body env
+    bound <- bind name macro env
+    put bound
     pure Nil
   _ -> throwError (BadSyntax "define-macro")
 
@@ -136,7 +139,8 @@ evalDefine :: [Value] -> Eval Value
 evalDefine values = case values of
   [Atom name, body] -> do
     value <- eval body
-    modify (bind name value)
+    define name value
+    fixClosure name value
     pure Nil
   List (name : params) : body -> do
     let desugared = List [Atom "lambda", List params, beginWrap body]
@@ -148,9 +152,7 @@ evalSet values = case values of
   [Atom name, expr] -> do
     env <- get
     value <- eval expr
-    case assign name value env of
-      Nothing -> throwError (UndefinedName name)
-      Just updated -> put updated
+    assign name value env
     pure Nil
   _ -> throwError (BadSyntax "set!")
 
@@ -162,11 +164,13 @@ apply callerExpr argExprs = do
       checkArity argNames argExprs
       argValues <- mapM eval argExprs
       let pairs = zip argNames argValues
-      withEnv (bindAll closure pairs) (eval body)
+      env <- bindAll closure pairs 
+      withEnv env (eval body)
     Macro argNames body closure -> do
       checkArity argNames argExprs
       let pairs = zip argNames argExprs -- args are left unevaluated
-      expanded <- withEnv (bindAll closure pairs) (eval body)
+      env <- bindAll closure pairs
+      expanded <- withEnv env (eval body)
       eval expanded
     Primitive (CallFunc f) -> do
       argValues <- mapM eval argExprs
@@ -183,15 +187,17 @@ beginWrap values = List (Atom "begin" : values)
 
 withEnv :: Env -> Eval a -> Eval a
 withEnv env computation = do
-  put (emptyEnv {parent = Just env})
+  old <- get
+  put env
   result <- computation
-  modify (fromJust . parent)
+  put old
   pure result
 
 getVar :: Text -> Eval Value
 getVar name = do
   env <- get
-  whenNothing (lookup name env) $
+  value <- lookup name env
+  whenNothing value $
     throwError (UndefinedName name)
 
 checkArity :: [Text] -> [Value] -> Eval ()
@@ -205,11 +211,18 @@ getParamNames params = forM params $ \case
   Atom name -> pure name
   _ -> throwError (BadSyntax "parameter names must all be atoms")
 
-{- getParamNames :: [Value] -> Eval ([Text], Maybe Text)
-getParamNames = go ([], Nothing)
-  where
-    go :: ([Text], Maybe Text) -> [Value] -> Eval ([Text], Maybe Text)
-    go (params, varArg) [] = pure (params, varArg)
-    go (params, _) [Atom "&", Atom varArg] = pure (params, Just varArg)
-    go (params, varArg) (Atom name : rest) = go (name : params, varArg) rest
-    go _ _ = throwError (BadSyntax "parameters") -}
+fixClosure :: Text -> Value -> Eval ()
+fixClosure name value = do
+  env <- get
+  case value of
+    Function args body closure -> do
+      updatedClosure <- bind name value closure
+      let updatedFn = Function args body updatedClosure
+      assign name updatedFn env
+      assign name updatedFn updatedClosure
+    Macro args body closure -> do
+      updatedClosure <- bind name value closure
+      let updatedMacro = Macro args body updatedClosure
+      assign name updatedMacro env
+      assign name updatedMacro updatedClosure
+    _ -> pure ()

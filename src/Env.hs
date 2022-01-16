@@ -1,40 +1,50 @@
 module Env where
 
+import Control.Monad.Except (throwError)
+import Data.Foldable (foldrM)
 import qualified Data.Map as Map
 import Primitive
 import Relude
 import Types
 
-defaultEnv :: Env
-defaultEnv =
-  Env
-    { bindings = primitives,
-      parent = Nothing
-    }
+defaultEnv :: IO Env
+defaultEnv = do
+  primitiveRefs <- mapM newIORef primitives
+  pure Env {bindings = primitiveRefs, parent = Nothing}
 
-emptyEnv :: Env
-emptyEnv = defaultEnv {bindings = Map.empty}
+emptyEnv :: IO Env
+emptyEnv = do
+  env <- defaultEnv
+  pure (env {bindings = Map.empty})
 
-makeEnv :: Env -> Env
-makeEnv env = emptyEnv {parent = Just env}
+bind :: Text -> Value -> Env -> Eval Env
+bind name value env = do
+  valueRef <- newIORef value
+  pure $ env {bindings = Map.insert name valueRef (bindings env)}
 
-bind :: Text -> Value -> Env -> Env
-bind name value env = 
-  env {bindings = Map.insert name value (bindings env)}
+bindAll :: Env -> [(Text, Value)] -> Eval Env
+bindAll = foldrM (uncurry bind)
 
-bindAll :: Env -> [(Text, Value)] -> Env
-bindAll = foldr (uncurry bind)
+lookup :: Text -> Env -> Eval (Maybe Value)
+lookup name Env {bindings, parent} =
+  case Map.lookup name bindings of
+    Nothing -> case parent of
+      Nothing -> pure Nothing
+      Just p -> lookup name p
+    Just valueRef -> do
+      value <- readIORef valueRef
+      pure (Just value)
 
-lookup :: Text -> Env -> Maybe Value
-lookup name Env{bindings, parent} = 
-  whenNothing (Map.lookup name bindings) $ do
-    p <- parent
-    lookup name p
+assign :: Text -> Value -> Env -> Eval ()
+assign name value env@Env {bindings, parent} =
+  case Map.lookup name bindings of
+    Nothing -> case parent of
+      Nothing -> throwError (UndefinedName name)
+      Just p -> assign name value p
+    Just valueRef -> writeIORef valueRef value
 
-assign :: Text -> Value -> Env -> Maybe Env
-assign name value env@Env{bindings, parent} = 
-  if Map.member name bindings
-    then Just (bind name value env)
-    else do
-      p <- parent
-      Just (env {parent = assign name value p})
+define :: Text -> Value -> Eval ()
+define name value = do
+  env <- get
+  bound <- bind name value env
+  put bound

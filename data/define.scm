@@ -1,3 +1,3 @@
-(define x 5)
+(define x (+ 5 5))
 
-(print (+ x x))
+(print x)
