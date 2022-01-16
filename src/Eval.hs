@@ -25,6 +25,7 @@ eval val = case val of
   Boolean b -> pure (Boolean b)
   DottedList xs last -> pure (DottedList xs last)
   List (head : rest) -> case head of
+    -- Atom "dumpEnv" -> get >>= traceShowM >> pure Nil
     Atom "if" -> evalIf rest
     Atom "lambda" -> evalLambda rest
     Atom "let" -> evalLet rest
@@ -66,7 +67,7 @@ evalLet values = case values of
         value <- eval expr
         pure (name, value)
       _ -> throwError (BadSyntax "let")
-    withEnv (bindAll emptyEnv pairs) (eval (beginWrap body))
+    withEnv (bindAll env pairs) (eval (beginWrap body))
   _ -> throwError (BadSyntax "let")
 
 evalBegin :: [Value] -> Eval Value
@@ -145,8 +146,8 @@ evalDefine values = case values of
 evalSet :: [Value] -> Eval Value
 evalSet values = case values of
   [Atom name, expr] -> do
-    value <- eval expr
     env <- get
+    value <- eval expr
     case assign name value env of
       Nothing -> throwError (UndefinedName name)
       Just updated -> put updated
@@ -182,9 +183,9 @@ beginWrap values = List (Atom "begin" : values)
 
 withEnv :: Env -> Eval a -> Eval a
 withEnv env computation = do
-  modify (\current -> env {parent = Just current})
+  put (emptyEnv {parent = Just env})
   result <- computation
-  modify (fromJust . parent) -- safe since we just added a parent
+  modify (fromJust . parent)
   pure result
 
 getVar :: Text -> Eval Value

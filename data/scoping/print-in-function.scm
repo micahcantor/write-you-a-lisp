@@ -1,0 +1,11 @@
+(define a "global")
+
+(let ()
+  (define (showA)
+    (dumpEnv) 
+    (print a))
+  (dumpEnv)
+  (showA)
+  (dumpEnv)
+  (define a "block")
+  (showA))

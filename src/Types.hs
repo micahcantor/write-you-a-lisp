@@ -8,7 +8,7 @@ import qualified Text.Show
 data Env = Env
   { bindings :: Map Text Value,
     parent :: Maybe Env
-  } deriving (Eq)
+  } deriving (Show, Eq)
 
 newtype CallFunc = CallFunc ([Value] -> Eval Value)
 

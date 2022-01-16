@@ -15,6 +15,9 @@ defaultEnv =
 emptyEnv :: Env
 emptyEnv = defaultEnv {bindings = Map.empty}
 
+makeEnv :: Env -> Env
+makeEnv env = emptyEnv {parent = Just env}
+
 bind :: Text -> Value -> Env -> Env
 bind name value env = 
   env {bindings = Map.insert name value (bindings env)}
