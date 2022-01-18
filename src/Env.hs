@@ -10,7 +10,7 @@ import Types
 defaultEnv :: IO Env
 defaultEnv = do
   primitiveRefs <- mapM newIORef primitives
-  pure Env {bindings = primitiveRefs, parent = Nothing}
+  pure (Env {bindings = primitiveRefs, parent = Nothing})
 
 emptyEnv :: IO Env
 emptyEnv = do

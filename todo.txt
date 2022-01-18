@@ -1,5 +1,4 @@
 [] add varargs lambdas
-[] move primitive forms to primitve file
 [x] clean up main.hs
 [x] finish unquote-splicing
 [x] add basic io primitives
