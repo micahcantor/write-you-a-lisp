@@ -79,62 +79,6 @@ evalBegin exprs = do
     [] -> throwError (BadSyntax "begin")
     _ -> pure (last values) -- safe since must be nonempty
 
-evalQuote :: [Value] -> Eval Value
-evalQuote values = case values of
-  [x] -> pure x
-  _ -> throwError (BadSyntax "quote")
-
-evalQuasiquote :: [Value] -> Eval Value
-evalQuasiquote values = case values of
-  [v] -> case v of
-    List (Atom "quasiquote" : rest) -> do
-      inner <- evalQuasiquote rest
-      evalQuasiquote [inner]
-    List (Atom "unquote" : rest) ->
-      evalUnquote rest
-    List [Atom "unquote-splicing", _] ->
-      throwError (BadSyntax "unquote-splicing")
-    List xs -> do
-      values <- foldrM reducer [] xs
-      pure (List values)
-    _ -> pure v
-  _ -> throwError (BadSyntax "quasiquote")
-  where
-    reducer :: Value -> [Value] -> Eval [Value]
-    reducer x acc = case x of
-      List [Atom "unquote-splicing", expr] -> case expr of
-        List xs -> pure (xs ++ acc)
-        _ -> pure (expr : acc)
-      List (Atom "unquote-splicing" : _) ->
-        throwError (BadSyntax "unquote-splicing")
-      List (Atom "unquote" : rest) -> do
-        value <- evalUnquote rest
-        pure (value : acc)
-      List (Atom "quasiquote" : rest) -> do
-        inner <- evalQuasiquote rest
-        value <- evalQuasiquote [inner]
-        pure (value : acc)
-      List xs -> do
-        values <- foldrM reducer [] xs
-        pure (List values : acc)
-      _ -> pure (x : acc)
-
-evalUnquote :: [Value] -> Eval Value
-evalUnquote values = case values of
-  [x] -> eval x
-  _ -> throwError (BadSyntax "unquote")
-
-evalDefineMacro :: [Value] -> Eval Value
-evalDefineMacro values = case values of
-  [List (Atom name : params), body] -> do
-    env <- get
-    paramNames <- getParamNames params
-    let macro = Macro paramNames body env
-    bound <- bind name macro env
-    put bound
-    pure Nil
-  _ -> throwError (BadSyntax "define-macro")
-
 evalDefine :: [Value] -> Eval Value
 evalDefine values = case values of
   [Atom name, body] -> do
@@ -177,6 +121,62 @@ apply callerExpr argExprs = do
       f argValues
     _ -> throwError (NotCallable caller)
 
+evalQuote :: [Value] -> Eval Value
+evalQuote values = case values of
+  [x] -> pure x
+  _ -> throwError (BadSyntax "quote")
+
+evalQuasiquote :: [Value] -> Eval Value
+evalQuasiquote values = case values of
+  [v] -> case v of
+    List (Atom "quasiquote" : rest) -> do
+      inner <- evalQuasiquote rest
+      evalQuasiquote [inner]
+    List (Atom "unquote" : rest) ->
+      evalUnquote rest
+    List [Atom "unquote-splicing", _] ->
+      throwError (BadSyntax "unquote-splicing")
+    List xs -> do
+      values <- foldrM evalQuasiquoteList [] xs
+      pure (List values)
+    _ -> pure v
+  _ -> throwError (BadSyntax "quasiquote")
+  where
+    evalQuasiquoteList :: Value -> [Value] -> Eval [Value]
+    evalQuasiquoteList x acc = case x of
+      List [Atom "unquote-splicing", expr] -> case expr of
+        List xs -> pure (xs ++ acc)
+        _ -> pure (expr : acc)
+      List (Atom "unquote-splicing" : _) ->
+        throwError (BadSyntax "unquote-splicing")
+      List (Atom "unquote" : rest) -> do
+        value <- evalUnquote rest
+        pure (value : acc)
+      List (Atom "quasiquote" : rest) -> do
+        inner <- evalQuasiquote rest
+        value <- evalQuasiquote [inner]
+        pure (value : acc)
+      List xs -> do
+        values <- foldrM evalQuasiquoteList [] xs
+        pure (List values : acc)
+      _ -> pure (x : acc)
+
+evalUnquote :: [Value] -> Eval Value
+evalUnquote values = case values of
+  [x] -> eval x
+  _ -> throwError (BadSyntax "unquote")
+
+evalDefineMacro :: [Value] -> Eval Value
+evalDefineMacro values = case values of
+  [List (Atom name : params), body] -> do
+    env <- get
+    paramNames <- getParamNames params
+    let macro = Macro paramNames body env
+    bound <- bind name macro env
+    put bound
+    pure Nil
+  _ -> throwError (BadSyntax "define-macro")
+
 isTruthy :: Value -> Bool
 isTruthy v = case v of
   Boolean False -> False
@@ -185,6 +185,7 @@ isTruthy v = case v of
 beginWrap :: [Value] -> Value
 beginWrap values = List (Atom "begin" : values)
 
+-- run a computation in a given environment
 withEnv :: Env -> Eval a -> Eval a
 withEnv env computation = do
   old <- get
@@ -211,6 +212,8 @@ getParamNames params = forM params $ \case
   Atom name -> pure name
   _ -> throwError (BadSyntax "parameter names must all be atoms")
 
+-- stuff the definition of a function or macro into its closure
+-- so that it can be referenced recursively.
 fixClosure :: Text -> Value -> Eval ()
 fixClosure name value = do
   env <- get
