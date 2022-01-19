@@ -24,7 +24,6 @@ eval val = case val of
   String content -> pure (String content)
   Number n -> pure (Number n)
   Boolean b -> pure (Boolean b)
-  DottedList xs last -> pure (DottedList xs last)
   List (head : rest) -> case head of
     Atom "if" -> evalIf rest
     Atom "lambda" -> evalLambda rest
@@ -54,7 +53,7 @@ evalLambda :: [Value] -> Eval Value
 evalLambda values = case values of
   [List params, body] -> do
     closure <- get
-    (paramNames, varArg) <- getParamNames' params
+    (paramNames, varArg) <- getParamNames params
     pure (Function paramNames body closure varArg)
   _ -> throwError (BadSyntax "lambda")
 
@@ -178,10 +177,9 @@ evalDefineMacro :: [Value] -> Eval Value
 evalDefineMacro values = case values of
   [List (Atom name : params), body] -> do
     env <- get
-    (paramNames, varArg) <- getParamNames' params
+    (paramNames, varArg) <- getParamNames params
     let macro = Macro paramNames body env varArg
-    bound <- bind name macro env
-    put bound
+    define name macro
     pure Nil
   _ -> throwError (BadSyntax "define-macro")
 
@@ -215,11 +213,6 @@ checkArity params args =
     then pure ()
     else throwError (ArityMismatch "<function>")
 
-getParamNames :: [Value] -> Eval [Text]
-getParamNames params = forM params $ \case
-  Atom name -> pure name
-  _ -> throwError (BadSyntax "parameter names must all be atoms")
-
 -- stuff the definition of a function or macro into its closure
 -- so that it can be referenced recursively.
 fixClosure :: Text -> Value -> Eval ()
@@ -238,9 +231,9 @@ fixClosure name value = do
       assign name updatedMacro updatedClosure
     _ -> pure ()
 
-getParamNames' :: [Value] -> Eval ([Text], Maybe Text)
-getParamNames' [] = pure ([], Nothing)
-getParamNames' params = do
+getParamNames :: [Value] -> Eval ([Text], Maybe Text)
+getParamNames [] = pure ([], Nothing)
+getParamNames params = do
   atoms <- getAtoms params
   if "&" `elem` atoms
     then do

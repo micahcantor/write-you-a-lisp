@@ -85,19 +85,6 @@ unquoteSpliced = do
 atom :: Parser Value
 atom = Atom <$> identifier
 
-dottedList :: Parser Value
-dottedList = parens $ do
-  xs <- value `sepBy` whiteSpace
-  lexeme (string ".")
-  last <- value
-  case last of
-    -- if ends in pair, combine pair heads
-    DottedList ls l -> pure (DottedList (xs ++ ls) l)
-    -- if ends in list, then the pair is a list
-    List ls -> pure (List (xs ++ ls))
-    -- otherwise just pure pair
-    _ -> pure (DottedList xs last)
-
 list :: Parser Value
 list = parens $ do
   values <- value `sepBy` whiteSpace
@@ -113,7 +100,6 @@ value =
     <|> quasiquoted
     <|> try unquoteSpliced
     <|> unquoted
-    <|> try dottedList
     <|> list
 
 contents :: Parser a -> Parser a

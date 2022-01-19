@@ -24,7 +24,6 @@ data Value
   | Macro [Text] Value Env (Maybe Text)
   | Primitive CallFunc
   | List [Value]
-  | DottedList [Value] Value
   | Nil
   deriving (Eq)
 
@@ -39,7 +38,6 @@ instance Show Value where
     Macro _ _ _ _ -> "<macro>"
     Primitive _ -> "<primitive>"
     List xs -> parenthesized (unwordsList xs)
-    DottedList xs last -> parenthesized ((unwordsList xs) <> " . " <> show last)
     Nil -> "nil"
 
 unwordsList :: Show a => [a] -> String
