@@ -9,7 +9,7 @@ The language is mostly a core subset of Scheme, with a few differences stolen fr
 - There is just one equality test, `=`.
 - Has a Clojure-like `define-macro` form rather than Scheme's `syntax-rules`/`syntax-case`.
 
-The implementation currently using [relude](https://hackage.haskell.org/package/relude) (with the NoImplicitPrelude extension), but that might change.
+The implementation currently uses [relude](https://hackage.haskell.org/package/relude) (with the NoImplicitPrelude extension) rather than the standard Prelude.
 
 ## Examples
 
