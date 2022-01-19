@@ -2,8 +2,9 @@
 
 This is a work-in-progress repository for a small lisp written in Haskell. It is written primarily for clarity and concision, to show how to write an interpreter in Haskell using monad transformers.
 
-The language is mostly a core subset of Scheme, with a few differences:
+The language is mostly a core subset of Scheme, with a few differences stolen from Clojure:
 
+- Variable arity functions/macros are written in the form `(params ... & varArg)` rather than the dotted Scheme sytnax.
 - As in Clojure, there is just one equality test, `=`.
 - Has a Clojure-like `define-macro` form rather than Scheme's `syntax-rules`/`syntax-case`.
 

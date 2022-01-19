@@ -4,17 +4,11 @@ import Data.List (unwords)
 import qualified Data.Map as Map
 import Relude hiding (unwords)
 import qualified Text.Show
-import GHC.IO (unsafePerformIO)
 
 data Env = Env
   { bindings :: Map Text (IORef Value),
     parent :: Maybe Env
   } deriving (Eq)
-
-instance Show Env where
-  show Env{bindings, parent} = unsafePerformIO $ do
-    values <- mapM readIORef bindings
-    pure $ show (values, parent)
 
 newtype CallFunc = CallFunc ([Value] -> Eval Value)
 
@@ -26,8 +20,8 @@ data Value
   | String Text
   | Number Integer
   | Boolean Bool
-  | Function [Text] Value Env -- params, body, closure
-  | Macro [Text] Value Env
+  | Function [Text] Value Env (Maybe Text) -- params, body, closure, varArg
+  | Macro [Text] Value Env (Maybe Text)
   | Primitive CallFunc
   | List [Value]
   | DottedList [Value] Value
@@ -41,8 +35,8 @@ instance Show Value where
     Boolean False -> "#f"
     Atom text -> "\'" <> toString text
     String text -> "\"" <> toString text <> "\""
-    Function _ _ _ -> "<function>"
-    Macro _ _ _ -> "<macro>"
+    Function _ _ _ _ -> "<function>"
+    Macro _ _ _ _ -> "<macro>"
     Primitive _ -> "<primitive>"
     List xs -> parenthesized (unwordsList xs)
     DottedList xs last -> parenthesized ((unwordsList xs) <> " . " <> show last)

@@ -6,7 +6,6 @@ import Control.Monad.Except
 import Data.Foldable (foldrM)
 import Data.List (last)
 import qualified Data.Map as Map
-import Data.Maybe (fromJust)
 import Env
 import Relude hiding (last)
 import Types
@@ -16,7 +15,7 @@ runEval env eval = runExceptT (evalStateT eval env)
 
 runEvalDefault :: Eval a -> IO (Either LispError a)
 runEvalDefault computation = do
-  env <- defaultEnv 
+  env <- defaultEnv
   runEval env computation
 
 eval :: Value -> Eval Value
@@ -55,8 +54,8 @@ evalLambda :: [Value] -> Eval Value
 evalLambda values = case values of
   [List params, body] -> do
     closure <- get
-    paramNames <- getParamNames params
-    pure (Function paramNames body closure)
+    (paramNames, varArg) <- getParamNames' params
+    pure (Function paramNames body closure varArg)
   _ -> throwError (BadSyntax "lambda")
 
 evalLet :: [Value] -> Eval Value
@@ -104,15 +103,15 @@ apply :: Value -> [Value] -> Eval Value
 apply callerExpr argExprs = do
   caller <- eval callerExpr
   case caller of
-    Function argNames body closure -> do
-      checkArity argNames argExprs
+    Function paramNames body closure varArg -> do
+      checkArity paramNames (take (length paramNames) argExprs)
       argValues <- mapM eval argExprs
-      let pairs = zip argNames argValues
-      env <- bindAll closure pairs 
+      let pairs = makeParamArgumentPairs paramNames argValues varArg
+      env <- bindAll closure pairs
       withEnv env (eval body)
-    Macro argNames body closure -> do
-      checkArity argNames argExprs
-      let pairs = zip argNames argExprs -- args are left unevaluated
+    Macro paramNames body closure varArg -> do
+      checkArity paramNames (take (length paramNames) argExprs)
+      let pairs = makeParamArgumentPairs paramNames argExprs varArg
       env <- bindAll closure pairs
       expanded <- withEnv env (eval body)
       eval expanded
@@ -120,6 +119,15 @@ apply callerExpr argExprs = do
       argValues <- mapM eval argExprs
       f argValues
     _ -> throwError (NotCallable caller)
+
+makeParamArgumentPairs :: [Text] -> [Value] -> Maybe Text -> [(Text, Value)]
+makeParamArgumentPairs paramNames args varArg =
+  case varArg of
+    Just varArgName -> 
+      let (singles, vars) = splitAt (length paramNames) args
+          varArgValue = List vars
+       in (zip paramNames args) ++ [(varArgName, varArgValue)] 
+    Nothing -> zip paramNames args
 
 evalQuote :: [Value] -> Eval Value
 evalQuote values = case values of
@@ -170,8 +178,8 @@ evalDefineMacro :: [Value] -> Eval Value
 evalDefineMacro values = case values of
   [List (Atom name : params), body] -> do
     env <- get
-    paramNames <- getParamNames params
-    let macro = Macro paramNames body env
+    (paramNames, varArg) <- getParamNames' params
+    let macro = Macro paramNames body env varArg
     bound <- bind name macro env
     put bound
     pure Nil
@@ -205,7 +213,7 @@ checkArity :: [Text] -> [Value] -> Eval ()
 checkArity params args =
   if length params == length args
     then pure ()
-    else throwError (ArityMismatch "<function>") 
+    else throwError (ArityMismatch "<function>")
 
 getParamNames :: [Value] -> Eval [Text]
 getParamNames params = forM params $ \case
@@ -218,14 +226,32 @@ fixClosure :: Text -> Value -> Eval ()
 fixClosure name value = do
   env <- get
   case value of
-    Function args body closure -> do
+    Function args body closure varArg -> do
       updatedClosure <- bind name value closure
-      let updatedFn = Function args body updatedClosure
+      let updatedFn = Function args body updatedClosure varArg
       assign name updatedFn env
       assign name updatedFn updatedClosure
-    Macro args body closure -> do
+    Macro args body closure varArg -> do
       updatedClosure <- bind name value closure
-      let updatedMacro = Macro args body updatedClosure
+      let updatedMacro = Macro args body updatedClosure varArg
       assign name updatedMacro env
       assign name updatedMacro updatedClosure
     _ -> pure ()
+
+getParamNames' :: [Value] -> Eval ([Text], Maybe Text)
+getParamNames' [] = pure ([], Nothing)
+getParamNames' params = do
+  atoms <- getAtoms params
+  if "&" `elem` atoms
+    then do
+      let singles = takeWhile (/= "&") atoms
+      let varArg = last atoms
+      if varArg == "&"
+        then throwError (BadSyntax "missing variable argument after ampersand")
+        else pure (singles, Just varArg)
+    else pure (atoms, Nothing)
+  where
+    getAtoms :: [Value] -> Eval [Text]
+    getAtoms params = forM params $ \case
+      Atom name -> pure name
+      _ -> throwError (BadSyntax "parameter names must all be atoms")
