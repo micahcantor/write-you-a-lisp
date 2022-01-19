@@ -1,9 +1,0 @@
-[] add varargs lambdas
-[x] clean up main.hs
-[x] finish unquote-splicing
-[x] add basic io primitives
-[x] change env to record rather than stack
-[x] add quasiquote/unquote
-[x] implement simple macros
-[x] add equality
-[x] fix set!
