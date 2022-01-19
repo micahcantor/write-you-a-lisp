@@ -4,8 +4,9 @@ This is a work-in-progress repository for a small lisp written in Haskell. It is
 
 The language is mostly a core subset of Scheme, with a few differences stolen from Clojure:
 
+- There are no pairs, only lists.
 - Variable arity functions/macros are written in the form `(params ... & varArg)` rather than the dotted Scheme sytnax.
-- As in Clojure, there is just one equality test, `=`.
+- There is just one equality test, `=`.
 - Has a Clojure-like `define-macro` form rather than Scheme's `syntax-rules`/`syntax-case`.
 
 The implementation currently using [relude](https://hackage.haskell.org/package/relude) (with the NoImplicitPrelude extension), but that might change.
@@ -33,6 +34,16 @@ The implementation currently using [relude](https://hackage.haskell.org/package/
       (cons (f (car xs)) (map f (cdr xs)))))
 
 (print (map add1 '(1 2 3 4 5)))
+```
+
+### list
+```scm
+(define (list & values)
+  (if (null? values)
+      '()
+      (cons (car values) (cdr values))))
+
+(print (list 1 2 3))
 ```
 
 ### quasiquotation/infix macro
